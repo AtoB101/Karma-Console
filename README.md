@@ -119,7 +119,7 @@ python -m pytest -q
 
 ## License
 
-Apache License 2.0（待最终确认，见 LICENSE）。
+Apache License 2.0。完整文本见 `LICENSE` 文件。
 
 ## 免责声明
 
