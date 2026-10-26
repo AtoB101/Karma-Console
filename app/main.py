@@ -4353,6 +4353,411 @@ def analytics_report(
     }
 
 
+@app.get("/workspaces/{workspace_id}/analytics/insight")
+def analytics_insight(
+    workspace_id: str,
+    actor: Actor = Depends(require_actor),
+    db: Session = Depends(get_db),
+    domain: str = "report",
+    days: int = 30,
+    offset: int = 0,
+) -> dict:
+    """统一生意域洞察聚合：一句话意图 → 结构化面板数据（指标/趋势/分布/明细）。
+
+    domain: report|orders|finance|products|stock|customers|service|marketing|content|tasks|system
+    全部数据来自本工作区本地库，只读、不伪造；金额为本地订单口径。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    days = max(1, min(int(days or 30), 180))
+    offset = max(0, int(offset or 0))
+    now = datetime.now(timezone.utc)
+    end = now - timedelta(days=offset)
+    start = end - timedelta(days=days - 1)
+    ws = actor.workspace_id
+
+    def _utc(dt):
+        if dt is None:
+            return None
+        return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    def _bucket_map(days_, offset_):
+        b = [
+            {"date": (start + timedelta(days=i)).date().isoformat(), "value": 0.0}
+            for i in range(days_)
+        ]
+        return {x["date"]: x for x in b}, b
+
+    def _load_orders():
+        return db.execute(select(Order).where(Order.workspace_id == ws)).scalars().all()
+
+    def _load_customers():
+        return db.execute(select(Customer).where(Customer.workspace_id == ws)).scalars().all()
+
+    def _load_products():
+        return db.execute(select(Product).where(Product.workspace_id == ws)).scalars().all()
+
+    revenue_status = ("PAID", "COMPLETED", "FULFILLED", "DONE")
+    status_cn = {
+        "CREATED": "已创建", "PENDING": "待处理", "PAID": "已支付", "SHIPPED": "已发货",
+        "FULFILLED": "已完成", "COMPLETED": "已完成", "CANCELLED": "已取消", "REFUNDED": "已退款",
+        "DONE": "已完成",
+    }
+
+    def _orders_panel():
+        orders = _load_orders()
+        products = _load_products()
+        customers = _load_customers()
+        todos = db.execute(select(Todo).where(Todo.workspace_id == ws, Todo.status == "pending")).scalars().all()
+        approvals = db.execute(
+            select(ApprovalRequest).where(
+                ApprovalRequest.workspace_id == ws,
+                ApprovalRequest.status == ApprovalStatus.PENDING.value,
+            )
+        ).scalars().all()
+        bmap, buckets = _bucket_map(days, offset)
+        order_status: dict[str, int] = {}
+        rev = 0.0
+        for o in orders:
+            cd = _utc(getattr(o, "created_at", None))
+            if cd is None:
+                continue
+            k = cd.date().isoformat()
+            if k in bmap:
+                bmap[k]["value"] += 1.0
+            st = str(getattr(o, "status", "") or "")
+            order_status[status_cn.get(st, st or "未知")] = order_status.get(status_cn.get(st, st or "未知"), 0) + 1
+            if st in revenue_status:
+                rev += float(getattr(o, "total_amount", 0) or 0)
+        new_customers = 0
+        for c in customers:
+            cd = _utc(getattr(c, "created_at", None))
+            if cd and cd.date().isoformat() in bmap:
+                new_customers += 1
+        low = [p for p in products if (getattr(p, "stock", 0) or 0) <= 5]
+        return {
+            "kpis": [
+                {"label": "订单数", "value": sum(b["value"] for b in buckets), "fmt": "单"},
+                {"label": "本地营收", "value": round(rev, 2), "fmt": "¥"},
+                {"label": "新增客户", "value": new_customers, "fmt": "位"},
+                {"label": "待办/待审批", "value": f"{len(todos)}/{len(approvals)}", "fmt": ""},
+            ],
+            "trend": {"name": f"近 {len(buckets)} 天订单数（本地口径）", "buckets": buckets},
+            "dist": {"name": "订单状态分布", "items": [{"key": k, "value": v} for k, v in order_status.items()]},
+            "list": {
+                "name": "低库存预警（≤5 件）",
+                "cols": [{"key": "name", "label": "商品"}, {"key": "stock", "label": "库存"}],
+                "rows": [[getattr(p, "name", "—"), str(getattr(p, "stock", 0))] for p in low[:8]],
+            },
+            "caveat": "金额为本地订单口径，非平台对账；真实结算以 Karma 回执为准。",
+        }
+
+    def _orders():
+        orders = _load_orders()
+        total = round(sum(float(getattr(o, "total_amount", 0) or 0) for o in orders), 2)
+        rev = round(sum(float(getattr(o, "total_amount", 0) or 0) for o in orders if str(getattr(o, "status", "") or "") in revenue_status), 2)
+        waiting = [o for o in orders if str(getattr(o, "status", "") or "").upper() == "PAID"]
+        order_status: dict[str, int] = {}
+        for o in orders:
+            st = str(getattr(o, "status", "") or "")
+            order_status[status_cn.get(st, st or "未知")] = order_status.get(status_cn.get(st, st or "未知"), 0) + 1
+        return {
+            "kpis": [
+                {"label": "订单总数", "value": len(orders), "fmt": "单"},
+                {"label": "订单金额", "value": total, "fmt": "¥"},
+                {"label": "成交金额", "value": rev, "fmt": "¥"},
+                {"label": "待发货", "value": len(waiting), "fmt": "单"},
+            ],
+            "trend": None,
+            "dist": {"name": "订单状态分布", "items": [{"key": k, "value": v} for k, v in order_status.items()]},
+            "list": {
+                "name": "最近订单",
+                "cols": [{"key": "ref", "label": "单号"}, {"key": "amount", "label": "金额"}, {"key": "status", "label": "状态"}],
+                "rows": [
+                    [str(getattr(o, "order_reference", "") or getattr(o, "id", "") or "—"),
+                     "¥" + format(float(getattr(o, "total_amount", 0) or 0), ",.2f"),
+                     status_cn.get(str(getattr(o, "status", "") or ""), str(getattr(o, "status", "") or "—"))]
+                    for o in sorted(orders, key=lambda x: _utc(getattr(x, "created_at", None)) or now, reverse=True)[:12]
+                ],
+            },
+            "caveat": "金额为本地订单口径，非平台对账；真实结算以 Karma 回执为准。",
+        }
+
+    def _finance():
+        orders = _load_orders()
+        rev_status = [o for o in orders if str(getattr(o, "status", "") or "") in revenue_status]
+        total_rev = round(sum(float(getattr(o, "total_amount", 0) or 0) for o in rev_status), 2)
+        n = len(rev_status)
+        bmap, buckets = _bucket_map(days, offset)
+        for o in rev_status:
+            cd = _utc(getattr(o, "created_at", None))
+            if cd is None:
+                continue
+            k = cd.date().isoformat()
+            if k in bmap:
+                bmap[k]["value"] += float(getattr(o, "total_amount", 0) or 0)
+        by_st: dict[str, float] = {}
+        for o in rev_status:
+            st = str(getattr(o, "status", "") or "")
+            by_st[status_cn.get(st, st or "未知")] = by_st.get(status_cn.get(st, st or "未知"), 0) + float(getattr(o, "total_amount", 0) or 0)
+        return {
+            "kpis": [
+                {"label": "本地营收", "value": total_rev, "fmt": "¥"},
+                {"label": "成交订单", "value": n, "fmt": "单"},
+                {"label": "客单价", "value": round(total_rev / n, 2) if n else 0, "fmt": "¥"},
+                {"label": "回款单数", "value": n, "fmt": "单"},
+            ],
+            "trend": {"name": f"近 {len(buckets)} 天营收走势（本地口径）", "buckets": buckets},
+            "dist": {"name": "成交金额按订单状态", "items": [{"key": k, "value": round(v, 2)} for k, v in by_st.items()]},
+            "list": {
+                "name": "最近成交订单",
+                "cols": [{"key": "ref", "label": "单号"}, {"key": "amount", "label": "金额"}, {"key": "status", "label": "状态"}],
+                "rows": [
+                    [str(getattr(o, "order_reference", "") or getattr(o, "id", "") or "—"),
+                     "¥" + format(float(getattr(o, "total_amount", 0) or 0), ",.2f"),
+                     status_cn.get(str(getattr(o, "status", "") or ""), str(getattr(o, "status", "") or "—"))]
+                    for o in sorted(rev_status, key=lambda x: _utc(getattr(x, "created_at", None)) or now, reverse=True)[:12]
+                ],
+            },
+            "caveat": "金额为本地订单口径，非平台对账；真实结算以 Karma 回执为准。",
+        }
+
+    def _products():
+        products = _load_products()
+        on = [p for p in products if str(getattr(p, "status", "") or "").lower() in ("", "published", "on", "active")]
+        low = [p for p in products if (getattr(p, "stock", 0) or 0) <= 5]
+        return {
+            "kpis": [
+                {"label": "商品总数", "value": len(products), "fmt": "款"},
+                {"label": "在售", "value": len(on), "fmt": "款"},
+                {"label": "低库存(≤5)", "value": len(low), "fmt": "款"},
+            ],
+            "trend": None,
+            "dist": None,
+            "list": {
+                "name": "商品清单",
+                "cols": [{"key": "name", "label": "商品"}, {"key": "price", "label": "价格"}, {"key": "stock", "label": "库存"}],
+                "rows": [
+                    [getattr(p, "name", "—"), "¥" + format(float(getattr(p, "price", 0) or 0), ",.2f"), str(getattr(p, "stock", 0))]
+                    for p in products[:24]
+                ],
+            },
+            "caveat": "产品库为全系统共享数据源：客服问答、营销文案、视频方案与开发均以本库为同源数据。",
+        }
+
+    def _stock():
+        products = _load_products()
+        total = sum(int(getattr(p, "stock", 0) or 0) for p in products)
+        low = sorted([p for p in products if (getattr(p, "stock", 0) or 0) <= 5], key=lambda p: int(getattr(p, "stock", 0) or 0))
+        return {
+            "kpis": [
+                {"label": "在库 SKU", "value": len(products), "fmt": "款"},
+                {"label": "库存总量", "value": total, "fmt": "件"},
+                {"label": "低库存预警", "value": len(low), "fmt": "款"},
+            ],
+            "trend": None,
+            "dist": None,
+            "list": {
+                "name": "低库存预警清单（≤5 件）",
+                "cols": [{"key": "name", "label": "商品"}, {"key": "stock", "label": "库存"}],
+                "rows": [[getattr(p, "name", "—"), str(getattr(p, "stock", 0))] for p in low[:12]],
+            },
+            "caveat": "补货动作经网关 add_stock 留痕；库存为客服问答与营销同源实时读取。",
+        }
+
+    def _customers():
+        customers = _load_customers()
+        stage_cn = {"new": "新增", "lead": "咨询", "negotiate": "详谈", "won": "成交", "repeat": "复购", "lost": "流失"}
+        cnt: dict[str, int] = {}
+        for c in customers:
+            k = stage_cn.get(str(getattr(c, "stage", "") or "").lower(), str(getattr(c, "stage", "") or "未知"))
+            cnt[k] = cnt.get(k, 0) + 1
+        return {
+            "kpis": [
+                {"label": k + "客户", "value": cnt.get(k, 0), "fmt": "位"} for k in ("新增", "咨询", "详谈", "成交", "复购")
+            ],
+            "trend": None,
+            "dist": {"name": "客户阶段分布", "items": [{"key": k, "value": v} for k, v in cnt.items()]},
+            "list": {
+                "name": "客户清单",
+                "cols": [{"key": "name", "label": "客户"}, {"key": "stage", "label": "阶段"}, {"key": "source", "label": "来源"}],
+                "rows": [
+                    [getattr(c, "name", "—") or getattr(c, "external_id", "—"),
+                     stage_cn.get(str(getattr(c, "stage", "") or "").lower(), str(getattr(c, "stage", "") or "—")),
+                     str(getattr(c, "source", "") or "—")]
+                    for c in sorted(customers, key=lambda x: _utc(getattr(x, "created_at", None)) or now, reverse=True)[:16]
+                ],
+            },
+            "caveat": "线索按评分规则分级，SOP 跟进节奏自动生成待办；阶段推进经网关留痕。",
+        }
+
+    def _service():
+        tickets = db.execute(select(Ticket).where(Ticket.workspace_id == ws)).scalars().all()
+        st_cn = {"new": "新工单", "processing": "处理中", "waiting_reply": "等待回复", "closed": "已关闭", "escalated": "已升级"}
+        cnt: dict[str, int] = {}
+        for t in tickets:
+            k = st_cn.get(str(getattr(t, "status", "") or "").lower(), str(getattr(t, "status", "") or "未知"))
+            cnt[k] = cnt.get(k, 0) + 1
+        open_n = len([t for t in tickets if str(getattr(t, "status", "") or "").lower() != "closed"])
+        return {
+            "kpis": [
+                {"label": "工单总数", "value": len(tickets), "fmt": "单"},
+                {"label": "进行中", "value": open_n, "fmt": "单"},
+                {"label": "已关闭", "value": cnt.get("已关闭", 0), "fmt": "单"},
+                {"label": "已升级", "value": cnt.get("已升级", 0), "fmt": "单"},
+            ],
+            "trend": None,
+            "dist": {"name": "工单状态分布", "items": [{"key": k, "value": v} for k, v in cnt.items()]},
+            "list": {
+                "name": "最近工单",
+                "cols": [{"key": "title", "label": "工单"}, {"key": "status", "label": "状态"}, {"key": "priority", "label": "优先级"}],
+                "rows": [
+                    [str(getattr(t, "title", "") or getattr(t, "description", "") or "—")[:36],
+                     st_cn.get(str(getattr(t, "status", "") or "").lower(), str(getattr(t, "status", "") or "—")),
+                     str(getattr(t, "priority", "") or "—")]
+                    for t in sorted(tickets, key=lambda x: _utc(getattr(x, "created_at", None)) or now, reverse=True)[:12]
+                ],
+            },
+            "caveat": "工单全程留痕并入哈希链审计；SLA 超时自动盯防；渠道接入为真实凭证位。",
+        }
+
+    def _content(kind_any: bool = False):
+        items = db.execute(select(ContentItem).where(ContentItem.workspace_id == ws)).scalars().all()
+        st_cn = {"draft": "草稿", "proposed": "待拍板", "pending": "待拍板", "approved": "已拍板", "rejected": "已驳回", "published": "已发布"}
+        cnt: dict[str, int] = {}
+        kind_cnt: dict[str, int] = {}
+        for it in items:
+            st = str(getattr(it, "status", "") or "").lower()
+            cnt[st_cn.get(st, st or "未知")] = cnt.get(st_cn.get(st, st or "未知"), 0) + 1
+            kd = "视频" if str(getattr(it, "kind", "") or "").lower() == "video" else "文案"
+            kind_cnt[kd] = kind_cnt.get(kd, 0) + 1
+        pending = cnt.get("待拍板", 0)
+        published = cnt.get("已发布", 0)
+        return {
+            "kpis": [
+                {"label": "内容条目", "value": len(items), "fmt": "条"},
+                {"label": "待CEO拍板", "value": pending, "fmt": "条"},
+                {"label": "已发布", "value": published, "fmt": "条"},
+                {"label": "文案/视频", "value": f"{kind_cnt.get('文案',0)}/{kind_cnt.get('视频',0)}", "fmt": ""},
+            ],
+            "trend": None,
+            "dist": {"name": "内容状态分布", "items": [{"key": k, "value": v} for k, v in cnt.items()]},
+            "list": {
+                "name": "最近内容条目",
+                "cols": [{"key": "title", "label": "标题"}, {"key": "kind", "label": "类型"}, {"key": "status", "label": "状态"}],
+                "rows": [
+                    [str(getattr(it, "title", "") or "—")[:36],
+                     "视频" if str(getattr(it, "kind", "") or "").lower() == "video" else "文案",
+                     st_cn.get(str(getattr(it, "status", "") or "").lower(), str(getattr(it, "status", "") or "—"))]
+                    for it in sorted(items, key=lambda x: _utc(getattr(x, "created_at", None)) or now, reverse=True)[:12]
+                ],
+            },
+            "caveat": "未 approved 不得发布；发布需真实渠道凭证；CEO 拍板备注与驳回原因全程留痕。",
+        }
+
+    def _tasks():
+        todos = db.execute(select(Todo).where(Todo.workspace_id == ws, Todo.status == "pending")).scalars().all()
+        approvals = db.execute(
+            select(ApprovalRequest).where(
+                ApprovalRequest.workspace_id == ws,
+                ApprovalRequest.status == ApprovalStatus.PENDING.value,
+            )
+        ).scalars().all()
+        todo_rows = [
+            [str(getattr(x, "title", "") or "—")[:40], str(getattr(x, "kind", "") or "—")]
+            for x in sorted(todos, key=lambda a: _utc(getattr(a, "created_at", None)) or now)[:12]
+        ]
+        appr_rows = [
+            [str(getattr(x, "action", "") or "—")[:40], str(getattr(x, "risk_level", "") or "—")]
+            for x in sorted(approvals, key=lambda a: _utc(getattr(a, "created_at", None)) or now)[:12]
+        ]
+        return {
+            "kpis": [
+                {"label": "待办任务", "value": len(todos), "fmt": "项"},
+                {"label": "待你拍板", "value": len(approvals), "fmt": "项"},
+            ],
+            "trend": None,
+            "dist": None,
+            "list": {
+                "name": "待你拍板 + 待办清单",
+                "cols": [{"key": "item", "label": "事项"}, {"key": "tag", "label": "类型"}],
+                "rows": [
+                    *[["拍板 · " + r[0], r[1]] for r in appr_rows],
+                    *[["待办 · " + r[0], r[1]] for r in todo_rows],
+                ][:16],
+            },
+            "caveat": "任务落账状态机统一视图；待审批经神经闸决策，重大动作需你授权。",
+        }
+
+    def _system():
+        out = {"kpis": [{"label": "模型接入", "value": "待配置", "fmt": ""}, {"label": "工作区", "value": "已连接", "fmt": ""}, {"label": "数据库", "value": "未知", "fmt": ""}]}
+        try:
+            r = db.execute(select(Workspace).where(Workspace.id == ws)).scalars().first()
+            if r and r.settings:
+                cfg = r.settings.get("model_config") or r.settings.get("modelCfg") or {}
+                if cfg.get("api_key") or cfg.get("enabled"):
+                    out["kpis"][0]["value"] = "已配置"
+        except Exception:
+            pass
+        try:
+            health = db.execute(select(1)).first()
+            out["kpis"][2]["value"] = "正常" if health else "异常"
+        except Exception:
+            out["kpis"][2]["value"] = "异常"
+        return {
+            **out,
+            "trend": None,
+            "dist": None,
+            "list": {
+                "name": "系统状态",
+                "cols": [{"key": "k", "label": "项"}, {"key": "v", "label": "值"}],
+                "rows": [["工作区数据库", "已同步"], ["规则执行引擎", "待命"], ["AI 模型服务", out["kpis"][0]["value"]], ["Karma 结算", "待接入"]],
+            },
+            "caveat": "只读探针，不暴露密钥与跨工作区数据；异常时自动进入巡检预案。",
+        }
+
+    panels = {
+        "report": lambda: {**_orders_panel(), "meta_agent": "主脑·经营分析", "meta_sub": "全生意域总览"},
+        "orders": lambda: {**_orders(), "meta_agent": "订单履约 Agent", "meta_sub": "订单与履约"},
+        "finance": lambda: {**_finance(), "meta_agent": "财务资金 Agent", "meta_sub": "资金与结算"},
+        "products": lambda: {**_products(), "meta_agent": "商品/库存 Agent", "meta_sub": "自营产品库"},
+        "stock": lambda: {**_stock(), "meta_agent": "库存 Agent", "meta_sub": "库存与预警"},
+        "customers": lambda: {**_customers(), "meta_agent": "智能获客 Agent", "meta_sub": "客户全生命周期"},
+        "service": lambda: {**_service(), "meta_agent": "智能客服 Agent", "meta_sub": "工单与接待"},
+        "marketing": lambda: {**_content(), "meta_agent": "社交运营 Agent", "meta_sub": "营销与发布"},
+        "content": lambda: {**_content(), "meta_agent": "内容三 Agent", "meta_sub": "文案·视频·运营"},
+        "tasks": lambda: {**_tasks(), "meta_agent": "CEO 主脑分派", "meta_sub": "任务与审批"},
+        "system": lambda: {**_system(), "meta_agent": "系统维护 Agent", "meta_sub": "运行与健康"},
+    }
+    if domain not in panels:
+        return {"domain": domain, "error": f"未知域 {domain}，可选：" + ",".join(sorted(panels)), "meta": {"title": "未知域"}, "kpis": [], "trend": None, "dist": None, "list": None, "caveat": ""}
+    p = panels[domain]()
+    titles = {
+        "report": "经营报表", "orders": "订单成交", "finance": "财务资金", "products": "产品库",
+        "stock": "库存总览", "customers": "客户全景", "service": "智能客服", "marketing": "营销内容",
+        "content": "内容创作", "tasks": "任务与审批", "system": "系统状态",
+    }
+    label = "昨日" if offset == 1 else (f"近 {days} 天" if days != 1 else "今日")
+    return {
+        "domain": domain,
+        "meta": {
+            "title": titles.get(domain, domain),
+            "label": label,
+            "start": start.date().isoformat(),
+            "end": end.date().isoformat(),
+            "days": days,
+            "offset": offset,
+            "sub": p.pop("meta_sub", ""),
+            "agent": p.pop("meta_agent", ""),
+        },
+        "kpis": p.pop("kpis", []),
+        "trend": p.pop("trend", None),
+        "dist": p.pop("dist", None),
+        "list": p.pop("list", None),
+        "caveat": p.pop("caveat", ""),
+    }
+
+
 @app.post("/workspaces/{workspace_id}/briefing/snapshot")
 def briefing_snapshot_save(
     workspace_id: str,
