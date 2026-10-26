@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.pytest-tmp/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+
+# 运行时数据与密钥（绝不上传）
+*.db
+*.sqlite3
+.env
+.secret.key
+logs/
+backups/
+data/
+*.log
+
+# 商业计划与内部文档（不上传）
+商业模式深度详解.md
+
+# 第三方模板（来源/授权待确认，暂不纳入开源）
+AI_Super_Console/
+
+# 开发残留防护
+_*.txt
+_*.py
+_*.js
+_*.json
+_*.log
+_*.png
+p_*.txt
+*.patch
+patch*.txt
+audit_*.json
+agent_probe.txt

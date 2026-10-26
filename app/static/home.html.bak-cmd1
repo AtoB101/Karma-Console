@@ -1,0 +1,1527 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KARMA SUPER CONSOLE</title>
+<style>
+:root{
+  --bg:#0d0714; --cyan:#ff2d95; --blue:#b16bff; --blue2:#a86bff;
+  --ink:#f4ecf7; --muted:#c3a8d8; --faint:#8a6f9e;
+  --line:rgba(255,45,149,.18); --line-soft:rgba(255,45,149,.09);
+  --glass:linear-gradient(135deg,rgba(34,11,48,.82),rgba(18,6,32,.74));
+  --ok:#33d69f; --warn:#f5a623; --danger:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#08030f;color:var(--ink);font-family:Inter,"Microsoft YaHei","PingFang SC",Arial,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+button:disabled{cursor:not-allowed;opacity:.45}
+/* ---- thin light beam scrollbars (all panels) ---- */
+*{scrollbar-width:thin;scrollbar-color:#b16bff transparent}
+*::-webkit-scrollbar{width:5px;height:5px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#ff2d95 0%,#b16bff 100%);border-radius:6px;box-shadow:0 0 8px rgba(255,150,205,.85)}
+*::-webkit-scrollbar-thumb:hover{background:#ffb3dd;box-shadow:0 0 12px rgba(255,180,225,.95)}
+*::-webkit-scrollbar-corner{background:transparent}
+/* scrollable panel bodies */
+.sidebar,.live-tasks,#liveTasks,.system,#systemRows,.brain,#recentList,.quick,#planList,.schedule,.composer-bottom{overflow-y:auto;overflow-x:hidden}
+.live-tasks,.system,.brain,.quick,.schedule{scrollbar-gutter:stable}
+/* ---- stage scaling ---- */
+.viewport{min-height:100dvh;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at center,#1a0c26,#01040b)}
+.stage-wrap{position:relative;flex-shrink:0}
+.stage{position:absolute;width:1536px;height:1024px;transform-origin:top left;overflow:hidden;background:var(--bg)}
+.scene{position:absolute;inset:0;background:url('/static/scene.png') center/100% 100% no-repeat;opacity:.92}
+.vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%,rgba(255,45,149,.10) 0%,rgba(177,107,255,.07) 32%,transparent 58%),radial-gradient(ellipse at 50% 42%,transparent 38%,rgba(8,3,15,.62) 100%);pointer-events:none}
+.energy-canvas{position:absolute;inset:0;width:1536px;height:1024px;pointer-events:none;z-index:1}
+/* ---- topbar ---- */
+.topbar{position:absolute;left:0;top:0;right:0;height:65px;display:flex;align-items:center;gap:26px;padding:0 20px;border-bottom:1px solid var(--line-soft);background:linear-gradient(90deg,rgba(1,9,23,.92),rgba(3,16,32,.85));backdrop-filter:blur(14px);z-index:5}
+.brand{display:flex;align-items:center;gap:11px;width:195px;text-align:left}
+.brand-mark{width:43px;height:48px;display:grid;place-items:center;filter:drop-shadow(0 0 8px #ff2d95)}
+.brand-mark svg{width:43px;height:48px;stroke:#ff6fb8;stroke-width:2.2;fill:none}
+.brand b{font-size:29px;letter-spacing:1px;line-height:31px;color:#f3f7ff;display:block}
+.brand small{font-size:9px;letter-spacing:1.6px;color:var(--muted)}
+.global-search{height:40px;width:490px;border-radius:23px;background:rgba(13,27,48,.8);border:1px solid var(--line-soft);display:flex;align-items:center;gap:12px;padding:0 15px;color:var(--faint)}
+.global-search svg{width:20px;flex-shrink:0}
+.global-search span{flex:1;font-size:13px}
+.global-search kbd{font-size:11px;border:1px solid #241530;padding:2px 6px;border-radius:4px;color:var(--muted)}
+.account-tools{display:flex;align-items:center;gap:22px;margin-left:auto}
+.account-tools>button{position:relative;display:flex;align-items:center;gap:9px;color:#ffc2e2}
+.account-tools svg{width:23px;filter:drop-shadow(0 0 5px #b16bff)}
+.account-tools i{position:absolute;right:-2px;top:-4px;background:#ff465d;width:8px;height:8px;border-radius:50%;box-shadow:0 0 9px #ff567e}
+.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#b89cc8,#261238);border:2px solid #ffb3dd;font-size:15px;box-shadow:0 0 10px #b16bff66}
+.account b{font-size:15px}
+.pro{font-size:12px;color:#2a1640;border-radius:10px;background:#f0c8ff;padding:4px 9px}
+/* ---- sidebar ---- */
+.sidebar{position:absolute;left:0;top:65px;width:210px;height:695px;background:linear-gradient(90deg,rgba(2,11,25,.95),rgba(3,17,44,.85));border-right:1px solid #2c1a40;z-index:3;padding:17px 12px 0 0;overflow:auto}
+.sidebar>button{display:flex;align-items:center;gap:14px;width:100%;height:62px;border:1px solid transparent;border-radius:0 12px 12px 0;padding:9px 15px;text-align:left;color:#f0f6ff;position:relative}
+.sidebar>button>svg{width:29px;height:29px;stroke:#ff6fb8;fill:#3159f844;filter:drop-shadow(0 0 7px #b16bff);flex-shrink:0}
+.sidebar span{font-size:16px;line-height:21px}
+.sidebar small{display:block;font-size:12px;color:#b8a3cc}
+.sidebar .selected{background:linear-gradient(90deg,rgba(177,107,255,.66),rgba(45,20,66,.4));border-top-color:#ff8cc9;border-bottom-color:#4a2a63;box-shadow:inset 5px 0 10px #b16bff,0 0 15px #ff2d9533}
+.sidebar>button:hover{background:rgba(18,50,100,.6)}
+.sidebar .nav-arrow{width:12px;color:#6b4a86;margin-left:auto}
+.count{background:#ff465c;border-radius:50%;min-width:20px;height:20px;font-size:11px;display:grid;place-items:center;margin-left:auto}
+/* ---- greeting / clock / tabs ---- */
+.greeting{position:absolute;left:255px;top:87px;z-index:2}
+.greeting h1{font-size:36px;line-height:43px;font-weight:750;letter-spacing:1px;text-shadow:0 0 13px #f0a8ff}
+.greeting p{font-size:18px;color:#d5dfed;margin:6px 0 0}
+.voice-top{position:absolute;left:944px;top:93px;width:157px;height:54px;border:1px solid #ff2d95;border-radius:28px;color:#ff8cc9;background:linear-gradient(180deg,#2a1640,#150a20);box-shadow:inset 0 0 16px #0075ff55,0 0 16px #0075ff44;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:17px;z-index:2}
+.voice-top svg{width:24px}
+.clock{position:absolute;top:85px;left:1124px;width:398px;height:65px;background:rgba(2,13,34,.87);border:1px solid #241233;border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;z-index:2}
+.clock b{font-size:15px;font-weight:400;display:block}
+.clock small{font-size:12px;color:#c3b0d8;display:block;margin-top:4px}
+.clock>svg{color:#ffd565;filter:drop-shadow(0 0 12px #ffbd3b);width:34px;height:34px;margin-left:auto;margin-right:16px}
+.tabs{position:absolute;top:178px;left:255px;height:45px;display:flex;gap:9px;z-index:2}
+.tabs button{height:44px;padding:0 22px;border:1px solid #5a2f7a;border-radius:10px;background:linear-gradient(180deg,rgba(11,41,70,.73),rgba(6,22,43,.9));font-size:16px;box-shadow:inset 0 0 10px #0870b31a;white-space:nowrap}
+.tabs button.active{border-color:#ff8cc9;color:#fff;background:linear-gradient(150deg,#3a1f52,#261338);box-shadow:inset 0 0 16px #b16bff,0 0 12px #1a79ff99}
+.tabs button.add{padding:0 9px;color:#ff8cc9;background:#1c0d28}
+/* ---- hero cards ---- */
+.hero-card{position:absolute;display:flex;align-items:center;gap:17px;width:250px;height:118px;border-radius:20px;border:1.5px solid #ff8cc9;background:linear-gradient(130deg,rgba(38,12,52,.92),rgba(26,9,40,.94) 55%,rgba(48,16,66,.94));box-shadow:inset 2px 2px 12px #ff2d959c,inset -3px -2px 10px #b16bff55,0 0 16px #ff2d95aa,2px 6px 18px rgba(8,3,15,.85);z-index:6;text-align:left;padding:17px;transition:filter .2s,translate .2s}
+.hero-card:after{content:'';position:absolute;left:-2px;top:15px;width:3px;height:55px;background:#ffb3dd;border-radius:4px;box-shadow:0 0 13px #ff6fb8}
+.hero-card.right:after{left:auto;right:-2px;background:#ddbcff;box-shadow:0 0 13px #af6cff}
+.hero-card:hover{filter:brightness(1.2);translate:0 -4px}
+.hero-card.left{transform:perspective(850px) rotateY(7deg) rotateZ(5deg)}
+.hero-card.right{transform:perspective(850px) rotateY(-7deg) rotateZ(-5deg)}
+.hero-icon{width:62px;height:62px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#5a2f7a,#28143a);border:1px solid #8a4fc0;display:grid;place-items:center;box-shadow:inset 0 0 20px #4b7fff33,0 0 12px #b16bff66;flex-shrink:0}
+.hero-icon svg{width:36px;height:36px;color:#ffc2e2;fill:#4587fc55;filter:drop-shadow(0 0 8px #ff6fb8)}
+.hero-text{min-width:0;flex:1}
+.hero-text strong{display:block;font-size:17px;font-weight:600;white-space:nowrap}
+.hero-text b{display:block;font-size:25px;line-height:34px;font-weight:450;margin-top:6px;color:#eaf6ff;text-shadow:0 0 10px #ff5fb0aa}
+.hero-text small{display:block;font-size:11px;color:#c9b3dd;white-space:nowrap}
+.hero-arrow{position:absolute;right:12px;top:67px;display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#331c48;color:#ff8cc9}
+.hero-arrow svg{width:18px}
+.c0.left{left:320px;top:248px}.c1.left{left:300px;top:370px}.c2.left{left:343px;top:495px}
+.c0.right{left:899px;top:248px}.c1.right{left:930px;top:373px}.c2.right{left:920px;top:497px}
+/* ---- core ---- */
+.core-trigger{position:absolute;left:605px;top:275px;width:290px;height:290px;border-radius:50%;z-index:2;background:transparent;transition:box-shadow .3s}
+.core-trigger:hover{box-shadow:0 0 35px #4fcaff55,inset 0 0 25px #00aaff22}
+.core-status{position:absolute;top:677px;left:565px;width:370px;display:flex;justify-content:center;align-items:center;gap:7px;color:#e6c6ff;font-size:11px;text-shadow:0 0 8px #ff5fb0;z-index:2}
+.live-dot{width:6px;height:6px;background:#50e8ca;border-radius:50%;box-shadow:0 0 9px #50e8ca}
+.live-dot.busy{background:#ffb3dd;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{filter:brightness(1.45);box-shadow:0 0 25px #ff2d95}}
+/* ---- glass panels right / left ---- */
+.glass{position:absolute;border:1px solid #a84fb0;border-radius:17px;background:linear-gradient(135deg,rgba(22,8,38,.87),rgba(16,6,32,.94));box-shadow:inset 0 0 16px #5a2f7a44,0 0 9px #ff2d952c;z-index:3}
+.panel-head{display:flex;align-items:center;gap:8px;border-bottom:1px solid #1a3252;padding:15px 17px 13px}
+.panel-head h3{font-size:18px;font-weight:600;white-space:nowrap}
+.panel-head>button{margin-left:auto;display:flex;gap:3px;align-items:center;padding:0;color:#ff8cc9;font-size:12px;white-space:nowrap}
+.live-tasks{left:1194px;top:164px;width:330px;height:313px}
+.live-task{height:63px;width:100%;display:flex;align-items:center;gap:10px;padding:9px 15px;text-align:left;border-bottom:1px solid #182d46;position:relative}
+.live-task:last-child{border:0}
+.task-icon{display:grid;place-items:center;width:35px;height:39px;border:1px solid #5a2f7a;border-radius:50%;background:#2c1840;flex-shrink:0}
+.task-icon svg{width:21px;color:#ff6fb8}
+.live-task>div{min-width:0;max-width:156px}
+.live-task strong{display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:15px;font-weight:500}
+.live-task small{display:block;font-size:11px;color:#b8a3cc;margin-top:7px}
+.tag{display:inline-block;border-radius:10px;background:#3a1f52;color:#d9a8ff;padding:3px 8px;font-size:11px;white-space:nowrap;line-height:1.2}
+.tag.green{background:#08433b;color:#48e6b3}
+.live-task .tag{font-size:10px;align-self:flex-start;margin-top:3px;margin-left:auto}
+.live-task time{position:absolute;right:17px;bottom:9px;font-size:10px;color:#b8a3cc}
+.mini-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:calc(100% - 55px);color:#b8a3cc;padding:0 16px;text-align:center}
+.mini-empty svg{color:#a88fc0;width:30px;height:30px}
+.mini-empty p{font-size:12px;margin:0}
+#liveTasks{max-height:248px}
+#systemRows{max-height:140px}
+#recentList{max-height:96px}
+#planList{max-height:150px}
+.system{left:1194px;top:487px;width:330px;height:200px}
+.system-row{display:flex;gap:12px;align-items:center;width:100%;height:35px;padding:5px 18px;text-align:left}
+.system-row svg{width:17px;height:17px}
+.system-row span{font-size:14px;flex:1}
+.system-row .tag{font-size:10px}
+.good{color:#4ee7be;filter:drop-shadow(0 0 5px #0fffa766)}
+.muted{color:#b8a3cc}
+/* brain */
+.brain{left:15px;top:757px;width:326px;height:243px;border-radius:20px}
+.brain .panel-head{padding:12px 17px 0;border:0}
+.brain .panel-head h3{font-size:17px}
+.brain-sub{color:#b8a3cc;font-size:10px;margin:3px 17px 10px}
+.brain-progress{display:flex;align-items:center;gap:10px;padding:10px 12px;margin:0 15px;border-radius:8px;background:linear-gradient(120deg,#3a1f52,#241338);color:#e6c6ff;border:1px solid #3a1f52}
+.brain-progress>svg{flex-shrink:0;width:20px}
+.brain-progress>div{min-width:0;flex:1}
+.brain-progress span{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brain-progress b{font-size:11px;color:#f3d8ff}
+.progress-track{height:4px;background:#2a1840;margin-top:8px;border-radius:4px;overflow:hidden}
+.progress-track i{display:block;height:100%;background:#ff7fc0;box-shadow:0 0 7px #ff2d95;transition:width .3s}
+.brain h4{font-size:11px;font-weight:400;margin:10px 17px 2px;color:#c9b3dd}
+.recent{display:flex;align-items:center;width:100%;gap:10px;height:28px;padding:0 16px;text-align:left}
+.recent svg{width:17px;color:#ff8cc9}
+.recent span{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.recent small{font-size:10px;color:#b8a3cc}
+/* quick + schedule */
+.quick{left:362px;top:711px;width:592px;min-height:180px;border-radius:21px;border-bottom-color:#b16bff}
+.quick .panel-head{border:0;padding:12px 18px}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 16px 14px}
+.quick-grid>button{border:1px solid #3a1f52;border-radius:10px;background:linear-gradient(135deg,#241233,#180b24);padding:8px 5px 10px;display:flex;flex-direction:column;align-items:center;gap:5px;transition:.2s}
+.quick-grid>button:hover{border-color:#ffb3dd;box-shadow:inset 0 0 20px #1754bd66;transform:translateY(-3px)}
+.quick-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#0d6b9999,#14366d44);color:#ff9ecb;filter:drop-shadow(0 0 10px #ff6fb8)}
+.quick-icon svg{width:29px;height:29px}
+.quick-grid strong{font-size:14px;font-weight:500}
+.quick-grid small{font-size:10px;color:#d9c2e6}
+.schedule{left:971px;top:711px;width:284px;height:195px;border-radius:20px}
+.plan-row{display:flex;align-items:center;gap:8px;width:100%;height:34px;padding:0 15px;text-align:left}
+.plan-row i{width:7px;height:7px;border-radius:50%;border:1px solid #30dfd7;flex-shrink:0}
+.plan-row time{font-size:11px;color:#e6d6f2}
+.plan-row>span{font-size:10px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plan-row b{font-size:9px;padding:3px 5px}
+/* composer */
+.composer{position:absolute;left:363px;top:924px;width:900px;height:74px;border-radius:38px;border:1px solid #ff6fb8;background:linear-gradient(160deg,rgba(30,12,44,.93),rgba(22,9,38,.95));box-shadow:inset 0 0 13px #ff2d9588,0 0 12px #ff2d9555;z-index:5;display:flex;align-items:center;padding:8px 12px 8px 9px;gap:11px}
+.profile{display:flex;align-items:center;gap:10px;flex-shrink:0;width:185px;text-align:left;border-right:1px solid #17466d;padding-right:10px}
+.profile .avatar{width:44px;height:44px}
+.profile>span:nth-child(2){font-size:11px}
+.profile small{display:block;font-size:9px;color:#c9b3dd;margin-top:5px}
+.mic-button{width:57px;height:57px;border-radius:50%;border:2px solid #ff6fb8;display:grid;place-items:center;color:#effaff;background:radial-gradient(circle at 40% 40%,#b16bff,#4a2a63 50%,#1c0e2e);box-shadow:0 0 0 4px #26143a,0 0 20px #ff2d95,inset 0 0 12px #ff7fc0;flex-shrink:0}
+.mic-button svg{width:30px;height:30px}
+.composer form{flex:1;min-width:0;position:relative;padding-right:35px}
+.composer textarea{display:block;border:0;background:transparent;color:#ebf6ff;outline:0;resize:none;width:100%;height:23px;max-height:40px;font-size:13px;padding:0;line-height:22px}
+.composer textarea::placeholder{color:#e0d0ee}
+.composer-bottom{display:flex;align-items:center;gap:5px;overflow:hidden;height:24px;white-space:nowrap}
+.composer-bottom button{border:1px solid #3a1f52;background:#08214b99;border-radius:13px;color:#eedcf8;padding:3px 8px;font-size:10px}
+.composer-bottom small{font-size:10px;color:#a88fc0}
+.send-button{position:absolute;right:0;top:8px;color:#efffff;filter:drop-shadow(0 0 7px #b16bff);padding:0}
+.send-button svg{width:23px;height:23px;fill:#8ef0ff44}
+.cube-caption{position:absolute;left:1300px;top:905px;width:200px;text-align:center;font-size:12px;color:#d9c6ee;z-index:2}
+.workspace-indicator{position:absolute;left:1270px;bottom:18px;font-size:10px;color:#b89cc8;display:flex;align-items:center;gap:7px;z-index:2}
+/* ---- overlay functional panel ---- */
+.panel-overlay{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(1,6,18,.62);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .28s ease}
+.panel-overlay.open{opacity:1;pointer-events:auto}
+.panel-modal{width:min(1080px,92%);height:min(720px,86%);display:flex;flex-direction:column;border-radius:22px;border:1px solid #ff2d95;background:linear-gradient(160deg,rgba(6,22,46,.95),rgba(4,14,32,.96));box-shadow:0 30px 90px rgba(0,0,0,.6),inset 0 0 30px #6a2f8f33,0 0 26px #b16bff44;transform:translateY(24px) scale(.98);transition:transform .28s ease;overflow:hidden}
+.panel-overlay.open .panel-modal{transform:translateY(0) scale(1)}
+.pm-head{display:flex;align-items:center;gap:16px;padding:18px 22px;border-bottom:1px solid #2a1538;flex-shrink:0}
+.pm-head h2{font-size:21px;font-weight:700;letter-spacing:1px;color:#eaf4ff;flex:1;text-shadow:0 0 12px #ff5fb088}
+.pm-back,.pm-close{display:flex;align-items:center;gap:6px;height:38px;padding:0 16px;border-radius:11px;border:1px solid #6a3a8f;background:#201030;color:#e6c6ff;font-size:14px;transition:.18s}
+.pm-back:hover,.pm-close:hover{border-color:#ff8cc9;color:#fff;box-shadow:0 0 12px #b16bff55}
+.pm-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px 22px}
+.pm-body::-webkit-scrollbar{width:5px}
+.tentacle-bar{flex-shrink:0;margin:0 22px;padding:10px 14px;border:1px solid #4a2a63;border-radius:12px;background:linear-gradient(160deg,rgba(14,42,78,.72),rgba(8,26,52,.6));backdrop-filter:blur(6px)}
+.tc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tc-owner{font-size:13.5px;font-weight:700;color:#f3d8ff;letter-spacing:.5px}
+.tc-detail{display:none;margin-top:10px;gap:0;flex-direction:column}
+.tc-detail.open{display:flex}
+.tc-row{display:flex;gap:10px;padding:6px 0;border-top:1px dashed #2a1538;font-size:12.5px;line-height:1.6}
+.tc-k{flex:0 0 96px;color:#e6c6ff;font-weight:600}
+.tc-v{flex:1;color:#f3e8ff}
+/* generic panel widgets */
+.pm-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.pm-input{height:40px;background:#1c0d2a;border:1px solid #6a3a8f;border-radius:10px;color:#eaf4ff;padding:0 13px;font-size:14px;outline:0;min-width:160px}
+.pm-input:focus{border-color:#ff8cc9;box-shadow:0 0 10px #b16bff55}
+.pm-btn{height:40px;padding:0 18px;border-radius:11px;border:1px solid #c06bff;background:linear-gradient(150deg,#4a2a63,#261438);color:#eaf6ff;font-size:14px;font-weight:600;transition:.18s;white-space:nowrap}
+.pm-btn:hover{filter:brightness(1.18);box-shadow:0 0 14px #b16bff66}
+.pm-btn.sm{height:32px;padding:0 12px;font-size:12.5px;border-radius:9px}
+.pm-btn.danger{border-color:#b05060;background:linear-gradient(150deg,#7a2638,#4a1826);color:#ffd7dd}
+.pm-btn.ghost{background:#1e0f2c;border-color:#6a3a8f;color:#e6c6ff;font-weight:500}
+.pm-table{width:100%;border-collapse:separate;border-spacing:0 8px}
+.pm-table th{font-size:12px;color:#e6c6ff;text-align:left;padding:0 14px;font-weight:500}
+.pm-table td{padding:13px 14px;background:rgba(12,32,62,.72);border-top:1px solid #2a1538;border-bottom:1px solid #2a1538;font-size:14px;color:#f6efff}
+.pm-table tr td:first-child{border-radius:12px 0 0 12px}
+.pm-table tr td:last-child{border-radius:0 12px 12px 0;text-align:right}
+.pm-chip{display:inline-flex;align-items:center;gap:5px;border-radius:11px;padding:3px 10px;font-size:11.5px;white-space:nowrap}
+.pm-chip.ok{background:#08433b;color:#48e6b3}
+.pm-chip.warn{background:#4a3310;color:#ffc86b}
+.pm-chip.info{background:#3a1f52;color:#d9a8ff}
+.pm-chip.bad{background:#4a1d28;color:#ff9aa8}
+.pm-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:220px;color:#b8a3cc;font-size:14px;text-align:center}
+.pm-meta{font-size:12px;color:#d9c2e6}
+/* ---- command / global search overlay ---- */
+.search-overlay{position:absolute;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;background:rgba(1,6,18,.6);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .2s}
+.search-overlay.open{opacity:1;pointer-events:auto}
+.search-box{width:min(680px,90%);margin-top:150px;background:linear-gradient(160deg,rgba(8,28,56,.97),rgba(5,16,36,.98));border:1px solid #ff2d95;border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.6),0 0 26px #b16bff44;overflow:hidden}
+.search-input{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid #2a1538}
+.search-input svg{width:22px;color:#f0a8ff;flex-shrink:0}
+.search-input input{flex:1;background:transparent;border:0;outline:0;color:#eaf4ff;font-size:17px}
+.search-input kbd{font-size:11px;border:1px solid #6a3a8f;border-radius:5px;padding:3px 7px;color:#e6c6ff}
+.search-results{max-height:380px;overflow-y:auto;padding:8px}
+.sr-group{font-size:11px;color:#c9b3dd;padding:10px 14px 4px;letter-spacing:1px}
+.sr-item{display:flex;align-items:center;gap:12px;width:100%;padding:11px 14px;border-radius:11px;text-align:left}
+.sr-item:hover{background:rgba(177,107,255,.16)}
+.sr-item .si-ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#241033;color:#f0a8ff;flex-shrink:0}
+.sr-item .si-ic svg{width:19px}
+.sr-item>div{min-width:0;flex:1}
+.sr-item strong{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-item small{display:block;font-size:11px;color:#d9c2e6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-empty{padding:30px;text-align:center;color:#b8a3cc;font-size:13px}
+/* login gate */
+.gate{position:absolute;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(1,5,14,.72);backdrop-filter:blur(8px)}
+.gate.show{display:flex}
+.gate-card{width:420px;background:linear-gradient(180deg,#1e1030,#160a22);border:1px solid #a84fb0;border-radius:20px;padding:34px;text-align:center;box-shadow:0 30px 90px rgba(0,0,0,.6)}
+.gate-card h2{font-size:22px;margin-bottom:10px}
+.gate-card p{color:var(--muted);font-size:13.5px;line-height:1.8;margin-bottom:20px}
+.gate-card .primary{background:linear-gradient(120deg,#4a2a63,#4a2a63);border:1px solid #c06bff;color:#f2faff;border-radius:10px;padding:11px 22px;font-size:14px}
+.neural-kpis-wrap{display:flex;align-items:flex-start;gap:10px;margin:4px 0 16px}
+.neural-refresh{white-space:nowrap;align-self:center}
+.neural-kpis{display:flex;gap:10px;flex-wrap:wrap;flex:1;margin:0}
+.nk-chip{flex:1;min-width:110px;padding:12px 14px;border:1px solid #4a2a63;border-radius:12px;background:linear-gradient(160deg,rgba(14,42,78,.7),rgba(8,26,52,.55));text-align:center}
+.nk-chip span{display:block;font-size:12px;color:#e6c6ff;margin-bottom:4px}
+.nk-chip b{font-size:22px;color:#f3d8ff;text-shadow:0 0 10px #ff2d9566}
+.neural-force{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.nf-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border:1px solid #5a2430;border-radius:11px;background:rgba(74,29,40,.35)}
+.nf-owner{font-size:13px;color:#f3e8ff}
+.nf-reason{font-size:12.5px;color:#ff9aa8;margin-left:auto}
+.lane-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px}
+.lane-col{border:1px solid #2a1538;border-radius:12px;padding:10px;background:rgba(8,22,44,.55);min-height:120px}
+.lane-col h4{font-size:12.5px;color:#e6c6ff;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+.lane-col h4 b{color:#ff2d95}
+.lane-escalated{border-color:#5a2430}
+.lane-failed{border-color:#5a3a20}
+.lane-item{font-size:12px;padding:6px 8px;margin-bottom:6px;border-radius:8px;background:rgba(20,48,84,.7);border:1px solid #2a1538}
+.lane-item span{display:block;color:#f6efff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lane-item small{color:#b8a3cc}
+.lane-empty{font-size:12px;color:#8a6f9e;text-align:center;padding:16px 0}
+.domain-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.domain-card{border:1px solid #4a2a63;border-radius:14px;padding:14px;background:linear-gradient(165deg,rgba(13,38,72,.72),rgba(7,20,40,.6));backdrop-filter:blur(6px)}
+.domain-card header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.domain-card header strong{font-size:15px;color:#eaf4ff}
+.dc-meta{font-size:12px;color:#e6c6ff;margin-bottom:6px}
+.dc-mission{font-size:13px;color:#e8dcf5;line-height:1.6;margin-bottom:8px}
+.dc-row{display:flex;gap:8px;font-size:12.5px;line-height:1.6;padding:4px 0;border-top:1px dashed #2a1538}
+.dc-k{flex:0 0 64px;color:#e6c6ff;font-weight:600}
+.dc-row>span:last-child{color:#f3e8ff}
+.dc-bad{color:#ff9aa8}
+.dc-tools{display:flex;flex-wrap:wrap;gap:4px}
+.dc-tools code{font-size:11px;padding:2px 7px;border-radius:7px;background:#241033;color:#d9a8ff}
+.dc-plan{margin-top:8px;border-top:1px dashed #2a1538}
+.dc-plan summary{cursor:pointer;font-size:12px;color:#ffb3dd;padding:6px 0;user-select:pointer;list-style:none}
+.dc-plan summary::before{content:"▸ ";color:#ff2d95}
+.dc-plan[open] summary::before{content:"▾ "}
+.dc-warn{color:#ffcf9a}
+.dc-plan .dc-row{border-top:none;padding:3px 0}
+@media(max-width:1100px){.lane-grid{grid-template-columns:repeat(3,1fr)}.domain-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ================= #177 cyber 2.5D / 3D enhancement (visual only) ================= */
+.stage{perspective:1500px}
+/* drifting starfield depth layer */
+.stage::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.7;
+background-image:radial-gradient(1.4px 1.4px at 12% 22%,#ffd6ec 60%,transparent),radial-gradient(1px 1px at 34% 68%,#f0a8ff 60%,transparent),radial-gradient(1.2px 1.2px at 58% 14%,#e8f6ff 60%,transparent),radial-gradient(1px 1px at 76% 44%,#ffc2e2 60%,transparent),radial-gradient(1.5px 1.5px at 88% 78%,#ffd6ec 60%,transparent),radial-gradient(1px 1px at 45% 86%,#ff8cc9 60%,transparent),radial-gradient(1.2px 1.2px at 24% 52%,#ffe0f0 60%,transparent),radial-gradient(1px 1px at 66% 62%,#ffc2e2 60%,transparent);
+animation:starTwinkle 5s ease-in-out infinite}
+@keyframes starTwinkle{50%{opacity:.35}}
+.topbar{box-shadow:0 1px 0 rgba(255,45,149,.22),0 10px 28px rgba(90,47,122,.22)}
+.greeting h1{background:linear-gradient(100deg,#eaf6ff,#ffb3dd 55%,#c9a8ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
+/* perspective grid floor — depth layer beneath content, pointer-free */
+.stage::after{content:'';position:absolute;left:-10%;right:-10%;bottom:-30px;height:360px;z-index:1;pointer-events:none;opacity:.85;
+background-image:linear-gradient(rgba(255,45,149,.13) 1px,transparent 1px),linear-gradient(90deg,rgba(255,45,149,.13) 1px,transparent 1px);
+background-size:48px 48px;transform:perspective(620px) rotateX(64deg) scale(1.7);transform-origin:bottom center;
+-webkit-mask-image:linear-gradient(180deg,transparent,#000 60%);mask-image:linear-gradient(180deg,transparent,#000 60%)}
+/* central 3D energy core: breathing glow + orbiting ring over the canvas orbit */
+.core-trigger::before,.core-trigger::after{content:'';position:absolute;border-radius:50%;pointer-events:none}
+.core-trigger::before{inset:0;background:radial-gradient(circle,rgba(255,45,149,.18),rgba(255,45,149,.04) 55%,transparent 70%);animation:coreBreathe 3.8s ease-in-out infinite}
+.core-trigger::after{inset:30px;border:1.5px solid rgba(255,45,149,.30);border-top-color:rgba(221,188,255,.85);border-right-color:rgba(255,45,149,.05);border-bottom-color:rgba(255,45,149,.12);animation:coreSpin 10s linear infinite;box-shadow:inset 0 0 26px rgba(255,45,149,.18),0 0 22px rgba(255,45,149,.16)}
+@keyframes coreSpin{to{transform:rotate(360deg)}}
+@keyframes coreBreathe{50%{opacity:.5;transform:scale(1.07)}}
+/* hero KPI cards: real 3D tilt + float on hover */
+.hero-card{transform-style:preserve-3d;transition:transform .26s ease,box-shadow .26s ease,filter .22s ease}
+.hero-card.left:hover{transform:perspective(850px) rotateY(11deg) rotateZ(5deg) translateY(-7px) translateZ(18px);box-shadow:inset 2px 2px 14px #ff2d95c0,0 0 26px #b16bffcc,0 14px 30px rgba(8,3,15,.9)}
+.hero-card.right:hover{transform:perspective(850px) rotateY(-11deg) rotateZ(-5deg) translateY(-7px) translateZ(18px);box-shadow:inset 2px 2px 14px #b08cff99,0 0 26px #8a5cffaa,0 14px 30px rgba(1,6,18,.9)}
+/* glass mini panels: top neon hairline + subtle lift */
+.glass::before{content:'';position:absolute;left:16px;right:16px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,45,149,.55),transparent);pointer-events:none}
+.glass{transition:transform .22s ease,box-shadow .22s ease}
+/* sidebar active row: light sweep */
+.sidebar .selected{overflow:hidden}
+.sidebar .selected::after{content:'';position:absolute;top:0;bottom:0;width:70px;background:linear-gradient(90deg,transparent,rgba(255,150,205,.20),transparent);animation:rowSweep 3.4s ease-in-out infinite}
+@keyframes rowSweep{0%{left:-80px}60%,100%{left:110%}}
+/* composer breathing aura */
+.composer{animation:composeGlow 4.2s ease-in-out infinite}
+@keyframes composeGlow{50%{box-shadow:inset 0 0 20px #ff2d95c0,0 0 26px #b16bff88}}
+/* functional panel modal: 3D tilt-in + top neon beam */
+.panel-overlay{perspective:1300px}
+.panel-modal{transform:rotateX(10deg) translateY(30px) scale(.96);transform-origin:center 28%}
+.panel-overlay.open .panel-modal{transform:rotateX(0) translateY(0) scale(1)}
+.panel-modal::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#ff2d95 30%,#c99bff 70%,transparent);box-shadow:0 0 16px #ff2d95;z-index:3;pointer-events:none}
+/* panel internals: rows lift + lit rail; chips/buttons/cards glow */
+.pm-table tbody tr{transition:transform .18s ease,background .18s ease}
+.pm-table tbody tr:hover td{background:rgba(22,58,108,.88)}
+.pm-table tbody tr:hover td:first-child{border-left:2px solid #ff2d95;box-shadow:-3px 0 12px rgba(255,45,149,.30)}
+.pm-btn{transition:transform .16s ease,box-shadow .16s ease,filter .16s ease}
+.pm-btn:hover{transform:translateY(-1px)}
+.pm-input{transition:border-color .16s ease,box-shadow .16s ease}
+.pm-chip{box-shadow:0 0 8px rgba(255,45,149,.12)}
+.nk-chip,.domain-card,.lane-col{transition:transform .2s ease,box-shadow .2s ease}
+.nk-chip:hover,.domain-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(255,45,149,.28),0 0 14px rgba(255,45,149,.20)}
+.quick-grid>button{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.quick-grid>button:hover{transform:translateY(-3px) translateZ(8px);box-shadow:0 10px 20px rgba(255,45,149,.35),0 0 12px rgba(255,45,149,.22)}
+</style>
+</head>
+<body>
+<div class="viewport"><div class="stage-wrap" id="wrap"><div class="stage" id="stage">
+  <div class="scene"></div><div class="vignette"></div>
+  <canvas class="energy-canvas" id="energy" width="1536" height="1024" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <button class="brand" onclick="goHome()">
+      <span class="brand-mark"><svg viewBox="0 0 43 48"><polygon points="21.5,3 39,13 39,35 21.5,45 4,35 4,13"/></svg></span>
+      <span><b>KARMA</b><small>SUPER CONSOLE</small></span>
+    </button>
+    <button class="global-search" onclick="openSearch()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <span>搜索任务、商家、数据、Agent 或命令…</span><kbd>Ctrl K</kbd>
+    </button>
+    <div class="account-tools">
+      <button title="通知" onclick="openPanel('notify')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><i id="notifDot"></i></button>
+      <button title="数据连接 / MCP · API" onclick="openPanel('connect')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></button>
+      <button class="account" onclick="openPanel('account')"><span class="avatar" id="av">杨</span><b id="accountName">杨浩</b></button>
+      <span class="pro">工作区</span>
+      <button title="返回总览" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <section class="greeting">
+    <h1 id="hello">你好，老板</h1>
+    <p>你的 AI 商业管理控制台 · 连接一切可能</p>
+  </section>
+  <button class="voice-top" onclick="startVoice()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>语音助手</button>
+  <div class="clock"><div><b id="clockTime">--:--</b><small id="clockDate"></small></div><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg></div>
+
+  <nav class="tabs" id="tabs">
+    <button class="active" onclick="openTab(this,null)">总览</button><button onclick="openTab(this,'order')">商业运营</button><button onclick="openTab(this,'market')">Agent 市场</button><button onclick="openTab(this,'ledger')">Karma 结算</button><button onclick="openTab(this,'analytics')">数据分析</button><button onclick="openTab(this,'content')">创作中心</button><button class="add" onclick="goHome()">＋</button>
+  </nav>
+
+  <!-- hero cards populated by JS from /dashboard -->
+  <button class="hero-card left c0" data-kpi="agents" onclick="openPanel('agent')"><span class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="8" width="16" height="11" rx="3"/><circle cx="9" cy="13.5" r="1.3"/><circle cx="15" cy="13.5" r="1.3"/><path d="M12 8V5M9 5h6"/></svg></span><span class="hero-text"><strong>我的Agent</strong><b id="kpi-agents">—</b><small>已配置规则经理人</small></span><span class="hero-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></span></button>
+  <button class="hero-card left c1" data-kpi="orders" onclick="openPanel('order')"><span class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><span class="hero-text"><strong>订单成交</strong><b id="kpi-orders">—</b><small>已支付待发货 / 配送中</small></span><span class="hero-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></span></button>
+  <button class="hero-card left c2" data-kpi="customers" onclick="openPanel('customer')"><span class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.5-5.5 6.5-5.5s5.7 2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/></svg></span><span class="hero-text"><strong>客户管理</strong><b id="kpi-customers">—</b><small>客户资料与跟进阶段</small></span><span class="hero-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></span></button>
+
+  <button class="hero-card right c0" data-kpi="tasks" onclick="openPanel('task')"><span class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="hero-text"><strong>任务中心</strong><b id="kpi-tasks">—</b><small>待办与待审批</small></span><span class="hero-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></span></button>
+  <button class="hero-card right c1" data-kpi="products" onclick="openPanel('product')"><span class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span class="hero-text"><strong>商品库存</strong><b id="kpi-products">—</b><small>在线商品 · 低库存预警</small></span><span class="hero-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></span></button>
+  <button class="hero-card right c2" data-kpi="approvals" onclick="openPanel('approval')"><span class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h18v18H3z"/><path d="m8 12 3 3 5-6"/></svg></span><span class="hero-text"><strong>待审批</strong><b id="kpi-approvals">—</b><small>需主人确认的操作</small></span><span class="hero-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></span></button>
+
+  <button class="core-trigger" id="core" title="经营总览" onclick="openPanel('overview')"></button>
+  <div class="core-status"><span class="live-dot" id="coreDot"></span><span id="coreText">核心待命 · 工作区已连接</span></div>
+
+  <section class="glass live-tasks"><header class="panel-head"><h3>实时任务</h3><button onclick="openPanel('task')">查看全部 ›</button></header><div id="liveTasks" class="mini-empty"><p>加载中…</p></div></section>
+  <section class="glass system"><header class="panel-head"><h3>系统状态</h3><button onclick="openPanel('system')">查看详情 ›</button></header><div id="systemRows"></div></section>
+
+  <section class="glass brain"><header class="panel-head"><h3>AI 主脑</h3><span class="tag green">在线</span></header><p class="brain-sub" id="brainSub">等待你的需求与任务</p><div class="brain-progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg><div><span id="brainStep">核心待命</span><div class="progress-track"><i id="brainBar" style="width:8%"></i></div></div><b id="brainPct">8%</b></div><h4>最近操作</h4><div id="recentList"><p class="mini-empty" style="height:auto">保存或执行后，操作记录将显示在这里。</p></div></section>
+
+  <section class="glass quick"><header class="panel-head"><h3>快捷入口</h3><button>自定义 ›</button></header><div class="quick-grid">
+    <button onclick="openPanel('product')"><span class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/></svg></span><strong>商品管理</strong><small>目录与库存</small></button>
+    <button onclick="openPanel('customer')"><span class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.5-5.5 6.5-5.5s5.7 2 6.5 5.5"/></svg></span><strong>客户管理</strong><small>档案与跟进</small></button>
+    <button onclick="openPanel('connect')"><span class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg></span><strong>数据连接</strong><small>MCP / API / 工具</small></button>
+    <button onclick="openPanel('task')"><span class="quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><strong>任务中心</strong><small>查看任务进度</small></button>
+  </div></section>
+
+  <section class="glass schedule"><header class="panel-head"><h3>今日计划</h3><button onclick="openPanel('task')">查看全部 ›</button></header><div id="planList"><div class="mini-empty"><p>今天还没有待办</p></div></div></section>
+
+  <section class="composer">
+    <button class="profile" onclick="openPanel('account')"><span class="avatar" id="av2">杨</span><span>你好，老板<small>个人工作区 · 点此查看</small></span></button>
+    <button class="mic-button" title="语音输入" onclick="startVoice()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></button>
+    <form id="composerForm" onsubmit="return submitCmd(event)">
+      <textarea id="cmdInput" rows="1" placeholder="你可以对我说：创建一个客户管理面板 / 生成经营数据报告 / 查看今日任务进度 / 帮我查询一下库存情况"></textarea>
+      <div class="composer-bottom" id="chips">
+        <button type="button" onclick="fillChip('创建一个客户管理面板')">创建客户面板</button>
+        <button type="button" onclick="fillChip('生成经营数据报告')">经营报告</button>
+        <button type="button" onclick="fillChip('查看今日任务进度')">今日进度</button>
+        <button type="button" onclick="fillChip('帮我查询一下库存情况')">查库存</button>
+        <small>Enter 发送 · Shift+Enter 换行</small>
+      </div>
+      <button type="submit" class="send-button" title="发送"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="m22 2-7 20-4-9-9-4 20-7Z"/></svg></button>
+    </form>
+  </section>
+  <div class="cube-caption" id="cubeCaption">核心已就绪 · 等待指令</div>
+  <div class="workspace-indicator"><span class="live-dot"></span><span id="wsState">真实工作区 · 连接中</span></div>
+
+  <div class="panel-overlay" id="panelOverlay">
+    <div class="panel-modal">
+      <header class="pm-head">
+        <button class="pm-back" onclick="closePanel()">‹ 返回总览</button>
+        <h2 id="pmTitle">面板</h2>
+        <button class="pm-close" onclick="closePanel()">✕</button>
+      </header>
+      <div id="pmTentacle" class="tentacle-bar"></div>
+      <div class="pm-body" id="pmBody"></div>
+    </div>
+  </div>
+
+  <div class="search-overlay" id="searchOverlay" onclick="if(event.target.id==='searchOverlay')closeSearch()">
+    <div class="search-box">
+      <div class="search-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" placeholder="搜索商品、客户、订单、待办、经理人，或直接输入命令…" oninput="runSearch(this.value)">
+        <kbd>Esc</kbd>
+      </div>
+      <div class="search-results" id="searchResults"><div class="sr-empty">输入关键词开始检索，回车可用命令直达面板。</div></div>
+    </div>
+  </div>
+
+  <div class="gate show" id="gate">
+    <div class="gate-card">
+      <h2>KARMA SUPER CONSOLE</h2>
+      <p>进入工作区后，KPI、任务、客户与库存将从你的真实业务数据实时填充。首次使用请先完成环境初始化。</p>
+      <button class="primary" onclick="enterConsole()">进入 / 初始化工作区</button>
+    </div>
+  </div>
+</div></div></div>
+
+<script>
+const LS_KEY="krama.console.v1";
+let state={apiKey:"",workspaceId:"",workspaceName:""};
+try{Object.assign(state,JSON.parse(localStorage.getItem(LS_KEY)||"{}"));}catch(e){}
+const $=s=>document.querySelector(s);
+function toast(t){let el=document.createElement("div");el.className="toast";el.textContent=t;el.style.cssText="position:fixed;top:22px;left:50%;transform:translateX(-50%);background:#221136;border:1px solid #ff8cc9;color:#eaf6ff;padding:12px 22px;border-radius:12px;z-index:99;font-size:13px";document.body.appendChild(el);setTimeout(()=>el.remove(),2800);}
+function goHome(){
+  closePanel();
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("active"));
+  const first=document.querySelector("#tabs button");if(first)first.classList.add("active");
+  loadData();
+}
+function enterConsole(){
+  if(!state.apiKey||!state.workspaceId){toast("尚未登录/初始化：请先在本地完成工作区初始化后再进入");return;}
+  $("#gate").classList.remove("show");
+  loadData();
+}
+function fillChip(v){$("#cmdInput").value=v;$("#cmdInput").focus();}
+
+// 本地意图路由：命中已知面板直接滑出，未命中交给完整工作台主脑
+const ROUTES=[
+["approval",["审批","待确认","待批","批准","驳回"]],
+["product",["商品","库存","上架","补货","货品","产品","目录","查库存"]],
+["order",["订单","成交","发货","物流","运单","签收","快递","取消单"]],
+["customer",["客户","线索","跟进","联系人","客户管理"]],
+["task",["任务","待办","提醒","清单","今日进度","计划"]],
+["agent",["经理人","agent","机器人","巡检","数字员工"]],
+["ledger",["结算","支付","收款","对账","退款","账单","karma","资金"]],
+["merchant",["商家","店铺","渠道","连接器","入驻","门店"]],
+["market",["市场","技能","安装","应用市场","插件","能力市场"]],
+["content",["文案","营销","创作","内容","推广","广告","短视频"]],
+["analytics",["数据","报表","分析","统计","趋势","经营报告","看板"]],
+["security",["安全","加密","备份","设备","审计","隐私","密钥"]],
+["settings",["设置","配置","模型","偏好"]],
+["system",["系统状态","运行状态","告警","定时任务","日志","自检","服务器","运维","uptime","系统面板"]],
+["notify",["通知中心","消息中心","通知","消息"]],
+["connect",["连接","MCP","API","工具目录","自定义函数","渠道接入","连接器配置"]],
+["neural",["神经调度","调度网","触角","分派","状态机","CEO","主脑调度"]],
+["overview",["经营总览","经营目标","业绩","目标完成","总览"]],
+["account",["账户","工作区信息","我的账号","账号信息","身份"]],
+];
+function routeCommand(q){
+  const s=q.toLowerCase();
+  for(const [key,words] of ROUTES){if(words.some(w=>s.includes(w.toLowerCase()))){openPanel(key);return;}}
+  toast("未识别到对应面板，已留在主台；可试试说「订单 / 商品 / 审批 / 客户 / 设置」等关键词");
+  goHome();
+}
+function submitCmd(e){e.preventDefault();const q=$("#cmdInput").value.trim();if(!q)return false;routeCommand(q);return false;}
+
+// 语音识别（Web Speech API）：识别结果回填，结束即走意图路由
+let recog=null,listening=false;
+function setMicState(on){
+  document.querySelectorAll(".mic-button,.voice-top").forEach(b=>{
+    b.style.boxShadow=on?"0 0 28px #ff5f8f,inset 0 0 16px #ff8aa8":"none";
+    b.style.borderColor=on?"#ff8aa8":"";
+  });
+}
+function startVoice(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast("当前浏览器不支持语音识别，请直接输入");return;}
+  if(listening){try{recog&&recog.stop();}catch(e){}return;}
+  recog=new SR();recog.lang="zh-CN";recog.interimResults=true;recog.maxAlternatives=1;
+  listening=true;setMicState(true);
+  recog.onresult=ev=>{let txt="",final="";for(let i=0;i<ev.results.length;i++){const r=ev.results[i];if(r.isFinal)final=r[0].transcript;txt+=r[0].transcript;}$("#cmdInput").value=txt;if(final.trim())$("#cmdInput").value=final.trim();};
+  recog.onerror=()=>{toast("语音识别未启动，请重试");setMicState(false);};
+  recog.onend=()=>{listening=false;setMicState(false);const v=$("#cmdInput").value.trim();if(v)routeCommand(v);};
+  try{recog.start();}catch(e){toast("语音启动失败");setMicState(false);}
+}
+function authHeaders(){return{"Content-Type":"application/json","Authorization":"Bearer "+state.apiKey,"X-Workspace-Id":state.workspaceId};}
+async function jget(p){const r=await fetch(p,{headers:authHeaders(),cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}
+
+// stage scale
+function fit(){const s=Math.min(window.innerWidth/1536,window.innerHeight/1024);$("#wrap").style.width=1536*s+"px";$("#wrap").style.height=1024*s+"px";$("#stage").style.transform=`scale(${s})`;}
+window.addEventListener("resize",fit);fit();
+
+// clock
+function tick(){const d=new Date();$("#clockTime").textContent=d.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"});$("#clockDate").textContent=d.toLocaleDateString("zh-CN",{weekday:"long",month:"long",day:"numeric"});}
+setInterval(tick,1000);tick();
+
+// nav
+const NAV=[
+["home","控制台","Home",'<path d="M3 11l9-8 9 8M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>'],
+["agent","我的Agent","Agents",'<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M12 7V4M9 4h6M12 17v3M10 12h.01M14 12h.01"/>'],
+["task","任务中心","Tasks",'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17"/>'],
+["ledger","支付与结算","Payments",'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h3"/>'],
+["merchant","商家与资源","Merchants",'<path d="M4 9l1-5h14l1 5M4 9v10h16V9M9 19v-5h6v5"/>'],
+["customer","客户管理","Customers",'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c.7-3.4 3-5 6-5s5.3 1.6 6 5"/><circle cx="17" cy="9" r="2.4"/>'],
+["product","商品与库存","Products",'<path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/>'],
+["content","营销与内容","Marketing",'<path d="M4 10v4h3l5 4V6l-5 4H4Z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>'],
+["analytics","数据分析","Analytics",'<path d="M4 20V11M10 20V4M16 20v-8M22 20H2"/>'],
+["security","安全中心","Security",'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3Z"/><path d="m9 12 2 2 4-4"/>'],
+["settings","系统设置","Settings",'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>'],
+["neural","神经调度网","Neural",'<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M6.5 7.5 10.8 16M17.5 7.5 13.2 16M7 6h10"/>']
+];
+function navIcon(inner){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;}
+$("#sidebar").innerHTML=NAV.map(([k,n,en,ic],i)=>`<button class="${i===0?"selected":""}" onclick="openPanel('${k}')">${navIcon(ic)}<span>${n}<small>${en}</small></span><svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></button>`).join("");
+
+// energy canvas: idle slow orbit + data streams (ported from energy.tsx, native JS)
+(function(){const cv=$("#energy"),ctx=cv.getContext("2d");let t=0,last=0,working=false;const endpoints=[[550,310],[540,435],[560,555],[930,310],[950,435],[930,560],[1170,820],[320,840]];
+function frame(ms){requestAnimationFrame(frame);const d=Math.min((ms-last)/1000,.04);last=ms;if(document.hidden)return;ctx.clearRect(0,0,1536,1024);t+=d*(working?2.6:.45);const color=working?"255,96,144":"255,45,149",alpha=working?1:.32;ctx.globalCompositeOperation="screen";
+for(let j=0;j<3;j++){ctx.save();ctx.translate(749,420);ctx.rotate((j-1)*.2+Math.sin(t*.2+j)*.06);ctx.strokeStyle=`rgba(${color},${alpha*.6})`;ctx.lineWidth=1.3;ctx.shadowBlur=14;ctx.shadowColor=`rgb(${color})`;ctx.beginPath();ctx.ellipse(0,0,165+j*20,36+j*14,0,0,Math.PI*2);ctx.stroke();for(let k=0;k<6;k++){const th=t*(j%2?-1:1)+k/6*Math.PI*2;ctx.beginPath();ctx.arc(Math.cos(th)*(165+j*20),Math.sin(th)*(36+j*14),working?2.5:1.4,0,Math.PI*2);ctx.fillStyle=`rgba(${color},${alpha})`;ctx.fill();}ctx.restore();}
+endpoints.forEach(([ex,ey],j)=>{const sx=749+(ex<749?-125:125),sy=420+(ey-420)*.22,cx=(sx+ex)/2,cy=(sy+ey)/2+(j%2?-45:45);ctx.strokeStyle=`rgba(${color},${alpha*.2})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(cx,cy,ex,ey);ctx.stroke();for(let p=0;p<5;p++){let tt=(t*.3+p/5+j*.1)%1;if(j%2)tt=1-tt;const x=(1-tt)**2*sx+2*(1-tt)*tt*cx+tt*tt*ex,y=(1-tt)**2*sy+2*(1-tt)*tt*cy+tt*tt*ey;ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fillStyle=`rgba(${color},${alpha})`;ctx.shadowColor=`rgb(${color})`;ctx.shadowBlur=12;ctx.fill();}});
+ctx.shadowBlur=0;ctx.globalCompositeOperation="source-over";}
+requestAnimationFrame(frame);window.__setWorking=v=>working=v;})();
+
+// ---- panel router ----
+async function jsend(method,p,body){const r=await fetch(p,{method,headers:authHeaders(),body:body?JSON.stringify(body):undefined,cache:"no-store"});if(!r.ok){let m="HTTP "+r.status;try{m=(await r.json()).detail||m;}catch(e){}throw new Error(m);}return r.status===204?null:r.json();}
+function fmtTime(iso){if(!iso)return "—";try{const d=new Date(iso);return d.toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});}catch(e){return "—";}}
+const KIND_LABEL={must_confirm:["待确认","warn"],needs_reply:["待回复","info"],info:["信息","info"]};
+const RISK_LABEL={low:["低","ok"],medium:["中","warn"],high:["高","bad"]};
+
+const PANELS={
+  task:{title:"任务中心",load:loadTaskPanel},
+  approval:{title:"待审批",load:loadApprovalPanel},
+  product:{title:"商品库存",load:loadProductPanel},
+  order:{title:"订单成交",load:loadOrderPanel},
+  customer:{title:"客户管理",load:loadCustomerPanel},
+  agent:{title:"我的Agent",load:loadAgentPanel},
+  ledger:{title:"支付结算",load:loadLedgerPanel},
+  merchant:{title:"商家资源",load:loadMerchantPanel},
+  content:{title:"营销与内容",load:loadContentPanel},
+  analytics:{title:"数据分析",load:loadAnalyticsPanel},
+  security:{title:"安全中心",load:loadSecurityPanel},
+  settings:{title:"系统设置",load:loadSettingsPanel},
+  notify:{title:"通知中心",load:loadNotifyPanel},
+  market:{title:"Agent 技能市场",load:loadMarketPanel},
+  connect:{title:"数据连接 / MCP · API",load:loadConnectPanel},
+  account:{title:"账户与工作区",load:loadAccountPanel},
+  overview:{title:"经营总览",load:loadOverviewPanel},
+  system:{title:"系统状态",load:loadSystemPanel},
+  neural:{title:"神经调度网",load:loadNeuralPanel},
+};
+function openPanel(key){
+  if(key==="home"){closePanel();return;}
+  const p=PANELS[key];
+  if(!p){toast("该面板暂未开放，已留在主台");return;}
+  $("#pmTitle").textContent=p.title;
+  $("#pmBody").innerHTML=`<div class="pm-empty"><p>加载中…</p></div>`;
+  $("#panelOverlay").classList.add("open");
+  loadTentacleBar(key);
+  p.load();
+}
+async function loadTentacleBar(key){
+  const box=$("#pmTentacle");if(!box)return;
+  box.innerHTML="";
+  const c=await sjget(`/workspaces/${state.workspaceId}/nervous/panel/${encodeURIComponent(key)}`);
+  if(!c){return;}
+  const autoLabel={AUTO:["自主执行","ok"],POLICY:["政策内自主","info"],ESCALATE:["需老板拍板","bad"]}[c.autonomy]||["","info"];
+  const workLabel=c.work==="ROUTINE"?"固定重复·低错误":"需分析动脑";
+  const rows=[
+    ["权限边界",c.boundary],
+    ["红线（禁止）",(c.forbidden||[]).join("；")],
+    ["主方案",c.plan],
+    ["B 方案（落地不了）",c.plan_b],
+    ["成本代价",c.cost],
+    ["最坏结果与兜底",c.worst_case],
+    ["完成回执",c.receipt],
+  ];
+  box.innerHTML=`
+  <div class="tc-head">
+    <span class="tc-owner">负责：${esc(c.owner_name)}</span>
+    <span class="pm-chip ${autoLabel[1]}">${autoLabel[0]}</span>
+    <span class="pm-chip info">${workLabel}</span>
+    <button class="pm-btn sm ghost" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'收起预案':'展开预案'">展开预案</button>
+  </div>
+  <div class="tc-detail">${rows.map(([k,v])=>v?`<div class="tc-row"><span class="tc-k">${k}</span><span class="tc-v">${esc(v)}</span></div>`:"").join("")}</div>`;
+}
+function closePanel(){if(window.__neuralTimer){clearInterval(window.__neuralTimer);window.__neuralTimer=null;}$("#panelOverlay").classList.remove("open");}
+function openTab(btn,key){
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  if(key)openPanel(key);else closePanel();
+}
+$("#panelOverlay").addEventListener("click",e=>{if(e.target.id==="panelOverlay")closePanel();});
+
+async function loadTaskPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`<div class="pm-toolbar"><input class="pm-input" id="tkTitle" placeholder="新增待办标题" style="flex:1;min-width:220px">
+    <select class="pm-input" id="tkKind"><option value="info">信息提醒</option><option value="needs_reply">待回复</option><option value="must_confirm">待确认（需确认码）</option></select>
+    <button class="pm-btn" onclick="addTodo()">＋ 添加</button></div><div id="tkList"></div>`;
+  const draw=async()=>{
+    const d=await jget(`/workspaces/${state.workspaceId}/todos?status=pending`);
+    const rows=d.todos||[];
+    $("#tkList").innerHTML=rows.length?`<table class="pm-table"><thead><tr><th>标题 / 说明</th><th>类型</th><th>时间</th><th>操作</th></tr></thead><tbody>${rows.map(t=>{
+      const [lb,cls]=KIND_LABEL[t.kind]||KIND_LABEL.info;
+      return `<tr><td><div style="font-weight:600">${esc(t.title)}</div><div class="pm-meta">${esc(t.detail||"")}</div></td>
+      <td><span class="pm-chip ${cls}">${lb}</span></td><td class="pm-meta">${fmtTime(t.created_at)}</td>
+      <td style="display:flex;gap:8px;justify-content:flex-end">
+        ${t.kind==="must_confirm"?`<button class="pm-btn sm" onclick="confirmTodo('${t.id}')">确认</button>`:`<button class="pm-btn sm" onclick="doneTodo('${t.id}')">完成</button>`}
+        <button class="pm-btn sm ghost" onclick="cancelTodo('${t.id}')">取消</button>
+      </td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>没有待办任务，添加一条试试。</p></div>`;
+  };
+  draw().catch(e=>body.innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
+  window.__tkRedraw=draw;
+}
+async function addTodo(){
+  const title=$("#tkTitle").value.trim();if(!title){toast("请输入标题");return;}
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/todos`,{title,detail:"",kind:$("#tkKind").value});$("#tkTitle").value="";toast("已添加");window.__tkRedraw&&window.__tkRedraw();}
+  catch(e){toast(e.message);}
+}
+async function doneTodo(id){try{await jsend("POST",`/workspaces/${state.workspaceId}/todos/${id}/status`,{status:"done"});window.__tkRedraw&&window.__tkRedraw();}catch(e){toast(e.message);}}
+async function cancelTodo(id){try{await jsend("POST",`/workspaces/${state.workspaceId}/todos/${id}/status`,{status:"cancelled"});window.__tkRedraw&&window.__tkRedraw();}catch(e){toast(e.message);}}
+async function confirmTodo(id){
+  const code=prompt("输入邮件收到的确认码：");if(code===null)return;
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/todos/${id}/confirm`,{code:code.trim()});toast("已确认");window.__tkRedraw&&window.__tkRedraw();}catch(e){toast(e.message);}
+}
+
+async function loadApprovalPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`<div id="apList"></div>`;
+  const draw=async()=>{
+    const d=await jget(`/workspaces/${state.workspaceId}/approvals`);
+    const rows=d.approvals||[];
+    $("#apList").innerHTML=rows.length?`<table class="pm-table"><thead><tr><th>动作 / 原因</th><th>风险</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>${rows.map(a=>{
+      const [rl,rc]=RISK_LABEL[a.risk_level]||RISK_LABEL.low;
+      const st=a.status==="PENDING"?["待审批","warn"]:a.status==="APPROVED"?["已批准","ok"]:["已拒绝","bad"];
+      return `<tr><td><div style="font-weight:600">${esc(a.action)}</div><div class="pm-meta">${esc(a.reason||"")}</div></td>
+      <td><span class="pm-chip ${rc}">${rl}</span></td><td><span class="pm-chip ${st[1]}">${st[0]}</span></td><td class="pm-meta">${fmtTime(a.created_at)}</td>
+      <td style="display:flex;gap:8px;justify-content:flex-end">${a.status==="PENDING"?`<button class="pm-btn sm" onclick="decideApproval('${a.id}',true)">批准</button><button class="pm-btn sm danger" onclick="decideApproval('${a.id}',false)">拒绝</button>`:`<span class="pm-meta">—</span>`}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>暂无待审批请求。</p></div>`;
+  };
+  draw().catch(e=>body.innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
+  window.__apRedraw=draw;
+}
+async function decideApproval(id,approve){
+  try{await jsend("POST",`/approvals/${id}/decision`,{approve});toast(approve?"已批准":"已拒绝");window.__apRedraw&&window.__apRedraw();}catch(e){toast(e.message);}
+}
+async function notifyDecision(id,approve){
+  try{await jsend("POST",`/approvals/${id}/decision`,{approve});toast(approve?"已批准":"已拒绝");loadNotifyPanel();}catch(e){toast(e.message);}
+}
+
+const ORDER_ST={PAID:["待发货","warn"],SHIPPED:["配送中","info"],DELIVERED:["已送达","ok"],CANCELLED:["已取消","bad"],PENDING:["待支付","warn"]};
+const CUST_ST={new:["新线索","info"],lead:["跟进中","warn"],won:["已成交","ok"],lost:["已流失","bad"]};
+const PROD_ST={published:["在售","ok"],draft:["草稿","info"],archived:["下架","bad"]};
+
+async function loadProductPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`<div class="pm-toolbar"><input class="pm-input" id="pdName" placeholder="商品名称" style="min-width:180px"><input class="pm-input" id="pdCat" placeholder="分类" style="width:120px"><input class="pm-input" id="pdPrice" type="number" min="0" step="0.01" placeholder="价格" style="width:110px"><button class="pm-btn" onclick="addProduct()">＋ 新增商品</button><button class="pm-btn ghost" onclick="bulkPrice()">批量调价（需审批）</button></div><div id="pdList"></div>`;
+  const draw=async()=>{
+    const [d,inv]=await Promise.all([jget(`/workspaces/${state.workspaceId}/products`),sjget(`/workspaces/${state.workspaceId}/inventory`)]);
+    const rows=d.products||[];
+    const nameMap=Object.fromEntries(rows.map(p=>[p.id,p.name]));
+    const moves=(inv&&inv.recent_movements)||[];
+    const prodTable=rows.length?`<table class="pm-table"><thead><tr><th>商品 / 分类</th><th>价格</th><th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows.map(p=>{
+      const [lb,cls]=PROD_ST[p.status]||PROD_ST.draft;
+      const low=(p.stock||0)<=5;
+      return `<tr><td><div style="font-weight:600">${esc(p.name)}</div><div class="pm-meta">${esc(p.category||"未分类")}</div></td>
+      <td>¥${Number(p.price||0).toFixed(2)}</td>
+      <td style="${low?"color:#ff9aa8;font-weight:600":""}">${p.stock??0}${low?" · 低库存":""}</td>
+      <td><span class="pm-chip ${cls}">${lb}</span></td>
+      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm ghost" onclick="editProduct('${p.id}')">编辑</button><button class="pm-btn sm ghost" onclick="restockProduct('${p.id}')">补货</button>${p.status==="published"?`<button class="pm-btn sm ghost" onclick="setProductStatus('${p.id}','draft')">下架</button>`:`<button class="pm-btn sm" onclick="setProductStatus('${p.id}','published')">上架</button>`}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>还没有商品，先新增一个。</p></div>`;
+    const moveSec=moves.length?`${secHead(`最近出入库（${moves.length}，只读）`)}<table class="pm-table"><thead><tr><th>商品</th><th>变动</th><th>原因</th><th>关联订单</th></tr></thead><tbody>${moves.map(m=>{const v=Number(m.delta||0);const col=v>0?"#33d69f":v<0?"#f87171":"#c3b0d8";return `<tr><td>${esc(nameMap[m.product_id]||m.product_id||"—")}</td><td style="color:${col};font-weight:700">${v>0?"+":""}${v}</td><td class="pm-meta">${esc(m.reason||"—")}</td><td class="pm-meta">${esc(m.order_id||"—")}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-meta" style="margin-top:12px">暂无出入库记录，补货/成交后在此显示。</div>`;
+    $("#pdList").innerHTML=prodTable+moveSec;
+  };
+  draw().catch(e=>body.innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
+  window.__pdRedraw=draw;
+}
+async function restockProduct(id){
+  const q=prompt("补货数量（正数）：");if(q===null)return;const n=parseInt(q,10);if(!(n>0)){toast("请填正数");return;}
+  await gwExec("add_stock",{product_id:id,quantity:n},()=>window.__pdRedraw&&window.__pdRedraw());
+}
+async function addProduct(){
+  const name=$("#pdName").value.trim();if(!name){toast("请输入商品名称");return;}
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/products`,{name,category:$("#pdCat").value.trim(),price:parseFloat($("#pdPrice").value)||0});toast("已新增");window.__pdRedraw&&window.__pdRedraw();}catch(e){toast(e.message);}
+}
+async function setProductStatus(id,status){try{await jsend("PATCH",`/workspaces/${state.workspaceId}/products/${id}`,{status});window.__pdRedraw&&window.__pdRedraw();}catch(e){toast(e.message);}}
+async function editProduct(id){
+  const name=prompt("新名称（留空不修改）：");if(name===null)return;
+  const category=prompt("新分类（留空不修改）：");if(category===null)return;
+  const body={};if(name.trim())body.name=name.trim();if(category.trim())body.category=category.trim();
+  if(!Object.keys(body).length){toast("未改动");return;}
+  try{await jsend("PATCH",`/workspaces/${state.workspaceId}/products/${id}`,body);toast("商品已更新");window.__pdRedraw&&window.__pdRedraw();}catch(e){toast(e.message);}
+}
+async function bulkPrice(){
+  const d=prompt("批量调价金额（正数涨价 / 负数降价，对全部商品生效，如 2 或 -1.5）：");if(d===null)return;
+  const delta=parseFloat(d);if(isNaN(delta)){toast("请填数字");return;}
+  await gwExec("bulk_update_prices",{delta},()=>window.__pdRedraw&&window.__pdRedraw());
+}
+
+async function loadOrderPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`<div class="pm-toolbar"><button class="pm-btn ghost" onclick="window.__odRedraw&&window.__odRedraw()">↻ 刷新</button></div><div id="odList"></div>`;
+  const draw=async()=>{
+    const [d,sv]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/orders`),sjget(`/workspaces/${state.workspaceId}/shipments`)]);
+    const rows=(d&&d.orders)||[];
+    const ships=(sv&&sv.shipments)||[];
+    const refOf=Object.fromEntries(rows.map(o=>[o.id,o.order_reference||o.id]));
+    const orderTable=rows.length?`<table class="pm-table"><thead><tr><th>单号 / 渠道</th><th>客户</th><th>金额</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows.map(o=>{
+      const [lb,cls]=ORDER_ST[o.status]||["其他","info"];
+      const done=o.status==="CANCELLED"||o.status==="DELIVERED";
+      return `<tr><td><div style="font-weight:600">${esc(o.order_reference||o.id)}</div><div class="pm-meta">${esc(o.channel||"—")}</div></td>
+      <td>${esc((o.customer&&(o.customer.name||o.customer))||"—")}</td>
+      <td>¥${Number(o.total_amount||0).toFixed(2)}</td>
+      <td><span class="pm-chip ${cls}">${lb}</span></td>
+      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm ghost" onclick="showOrderDetail('${o.id}')">明细</button>${done?`<span class="pm-meta">—</span>`:(o.status==="PAID"?`<button class="pm-btn sm" onclick="shipOrder('${o.id}','${esc(o.channel||"")}')">发货</button>`:"")}<button class="pm-btn sm danger" ${done?"disabled":""} onclick="cancelOrder('${esc(o.channel||"")}','${esc(o.order_reference||"")}')">取消</button></td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>暂无订单。发货/取消经网关审批后执行。</p></div>`;
+    const shipSec=ships.length?`${secHead(`物流运单（${ships.length}）`)}<table class="pm-table"><thead><tr><th>关联单号</th><th>承运商</th><th>运单号</th><th>状态</th></tr></thead><tbody>${ships.map(s=>`<tr><td class="pm-meta">${esc(refOf[s.order_id]||s.order_id||"—")}</td><td>${esc(s.carrier||"—")}</td><td style="font-weight:600">${esc(s.tracking_number||"—")}</td><td><span class="pm-chip info">${esc(s.status||"配送中")}</span></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta" style="margin-top:12px">暂无运单，发货后在此显示承运商与单号（只读）。</div>`;
+    $("#odList").innerHTML=orderTable+shipSec+`<div id="odDetail"></div>`;
+  };
+  draw().catch(e=>$("#odList").innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
+  window.__odRedraw=draw;
+}
+async function showOrderDetail(id){
+  const box=$("#odDetail");if(!box)return;
+  const d=await sjget(`/workspaces/${state.workspaceId}/orders/${id}`);
+  if(!d){toast("读取订单失败");return;}
+  const items=Array.isArray(d.items)?d.items:[];
+  const itemRow=it=>{
+    if(typeof it==="string")return `<tr><td colspan="3">${esc(it)}</td></tr>`;
+    const nm=it.name||it.title||it.product_name||"商品";
+    const qty=it.quantity??it.qty??"—";
+    const pr=it.price!=null?Number(it.price).toFixed(2):"—";
+    return `<tr><td>${esc(nm)}</td><td class="pm-meta" style="text-align:center">${esc(qty)}</td><td class="pm-meta" style="text-align:right">${pr}</td></tr>`;
+  };
+  box.innerHTML=`${secHead("订单明细（只读）")}
+  <table class="pm-table"><tbody>
+  <tr><td>渠道</td><td class="pm-meta" style="text-align:right">${esc(d.channel||"—")}</td></tr>
+  <tr><td>外部单号</td><td class="pm-meta" style="text-align:right">${esc(d.order_reference||"—")}</td></tr>
+  <tr><td>支付状态</td><td class="pm-meta" style="text-align:right">${esc(d.payment_status||"—")}</td></tr>
+  </tbody></table>
+  ${items.length?`<table class="pm-table"><thead><tr><th>商品</th><th>数量</th><th>单价</th></tr></thead><tbody>${items.map(itemRow).join("")}</tbody></table>`:`<div class="pm-meta">无商品明细行。</div>`}`;
+  box.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+async function shipOrder(orderId,channel){
+  const carrier=prompt("物流公司（可留空）","")||"";
+  const tracking=prompt("运单号：");if(tracking===null)return;
+  await gwExec("fulfill_order",{order_id:orderId,carrier,tracking_number:tracking},()=>window.__odRedraw&&window.__odRedraw());
+}
+async function cancelOrder(channel,ref){
+  if(!confirm("确认取消该订单？"))return;
+  await gwExec("cancel_order",{channel,order_reference:ref},()=>window.__odRedraw&&window.__odRedraw());
+}
+
+async function loadCustomerPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`<div class="pm-toolbar"><input class="pm-input" id="cuName" placeholder="客户姓名" style="min-width:160px"><input class="pm-input" id="cuChannel" placeholder="渠道 chat/微信/淘宝…" style="width:160px" value="chat"><button class="pm-btn" onclick="addCustomer()">＋ 新建客户</button><button class="pm-btn ghost" onclick="window.__cuRedraw&&window.__cuRedraw()">↻ 刷新</button></div><div id="cuList"></div><div id="cuHistory"></div>`;
+  const draw=async()=>{
+    const d=await sjget(`/workspaces/${state.workspaceId}/customers`);
+    const rows=(d&&d.customers)||[];
+    window.__cuRows=rows;
+    $("#cuList").innerHTML=rows.length?`<table class="pm-table"><thead><tr><th>客户 / 备注</th><th>渠道</th><th>阶段</th><th>操作</th></tr></thead><tbody>${rows.map(c=>{
+      const [lb,cls]=CUST_ST[c.stage]||CUST_ST.new;
+      const note=(c.profile&&c.profile.note)||"";
+      return `<tr><td><div style="font-weight:600">${esc(c.name||c.external_id||"未命名")}</div>${note?`<div class="pm-meta">备注：${esc(note)}</div>`:""}</td><td>${esc(c.channel||"—")}</td>
+      <td><span class="pm-chip ${cls}">${lb}</span></td>
+      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm ghost" onclick="customerHistory('${c.id}')">往来</button><button class="pm-btn sm ghost" onclick="noteCustomer('${c.id}')">备注</button><button class="pm-btn sm" onclick="advanceCustomer('${c.id}')">推进阶段</button></td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>暂无客户。</p></div>`;
+  };
+  draw().catch(e=>$("#cuList").innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
+  window.__cuRedraw=draw;
+}
+async function advanceCustomer(id){
+  const stage=prompt("推进到阶段：new 新线索 / lead 跟进中 / won 已成交 / lost 已流失","lead");
+  if(stage===null)return;
+  if(!["new","lead","won","lost"].includes(stage.trim())){toast("阶段值无效");return;}
+  await gwExec("update_customer",{customer_id:id,stage:stage.trim()},()=>window.__cuRedraw&&window.__cuRedraw());
+}
+async function noteCustomer(id){
+  const c=(window.__cuRows||[]).find(x=>x.id===id);if(!c){toast("未找到客户");return;}
+  const cur=(c.profile&&c.profile.note)||"";
+  const note=prompt("跟进备注（留空清空）：",cur);if(note===null)return;
+  await gwExec("upsert_customer",{channel:c.channel,external_id:c.external_id,profile:{note:note.trim()}},()=>window.__cuRedraw&&window.__cuRedraw());
+}
+async function customerHistory(id){
+  const box=$("#cuHistory");if(!box)return;
+  const d=await sjget(`/workspaces/${state.workspaceId}/customers/${id}`);
+  if(!d||d.error){toast("读取往来失败");return;}
+  const convs=d.conversations||[];
+  const bubbles=convs.flatMap(cv=>(cv.messages||[]).map(m=>{
+    const inbound=(m.direction||"").toLowerCase().startsWith("in");
+    const align=inbound?"flex-start":"flex-end";
+    const bg=inbound?"rgba(195,176,216,.12)":"rgba(255,45,149,.14)";
+    const who=inbound?"客户":"我方";
+    return `<div style="display:flex;justify-content:${align};margin:6px 0"><div style="max-width:72%;padding:8px 12px;border-radius:10px;background:${bg};border:1px solid rgba(255,45,149,.15)"><div class="pm-meta">${who} · ${fmtTime(m.created_at)}</div><div style="margin-top:2px">${esc(m.content||"")}</div></div></div>`;
+  }));
+  box.innerHTML=convs.length?`${secHead(`往来记录：${esc(d.name||d.external_id||"客户")}（只读）`)}${bubbles.join("")}`:`<div class="pm-meta" style="margin-top:12px">该客户暂无往来消息。</div>`;
+  box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function addCustomer(){
+  const name=$("#cuName").value.trim();if(!name){toast("请输入客户姓名");return;}
+  const channel=$("#cuChannel").value.trim()||"chat";
+  const external_id="local-"+Date.now();
+  await gwExec("upsert_customer",{name,channel,external_id,stage:"new",profile:{}},()=>window.__cuRedraw&&window.__cuRedraw());
+  $("#cuName").value="";
+}
+
+async function loadAgentPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`<div class="pm-toolbar"><input class="pm-input" id="agName" placeholder="经理人名称" style="min-width:180px"><input class="pm-input" id="agRole" placeholder="角色，如 store_manager" style="width:170px"><button class="pm-btn" onclick="addAgent()">＋ 新建经理人</button></div><div id="agToolEdit"></div><div id="agReport"></div><div id="agMem"></div><div id="agList"></div>`;
+  const draw=async()=>{
+    const d=await jget(`/workspaces/${state.workspaceId}/agents`);
+    const rows=d.agents||[];
+    window.__agRows=rows;
+    $("#agList").innerHTML=rows.length?`<table class="pm-table"><thead><tr><th>经理人 / 角色</th><th>工具数</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows.map(a=>{
+      const st=a.status==="live"?["运行中","ok"]:a.status==="test"?["测试","warn"]:["草稿","info"];
+      return `<tr><td><div style="font-weight:600">${esc(a.name)}</div><div class="pm-meta">${esc(a.role)} · ${esc(a.description||"")}</div></td>
+      <td>${(a.allowed_tools||[]).length}</td><td><span class="pm-chip ${st[1]}">${st[0]}</span></td>
+      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm" onclick="runAgent('${a.id}')">巡检一次</button><button class="pm-btn sm ghost" onclick="agentTools('${a.id}')">工具</button><button class="pm-btn sm danger" onclick="deleteAgent('${a.id}')">删除</button></td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>还没有经理人，新建一个规则经理人。</p></div>`;
+  };
+  draw().catch(e=>body.innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
+  loadAgentMemory();
+  window.__agRedraw=draw;
+}
+async function loadAgentMemory(){
+  const box=$("#agMem");if(!box)return;
+  const d=await sjget(`/workspaces/${state.workspaceId}/agent/memory`);
+  const mem=(d&&d.memories)||[];
+  const kindChip=k=>k==="fact"?"info":k==="preference"?"ok":"warn";
+  const memTable=mem.length?`<table class="pm-table"><thead><tr><th>键</th><th>类型</th><th>内容摘要</th><th>操作</th></tr></thead><tbody>${mem.map(m=>`<tr><td class="pm-meta">${esc(m.key)}</td><td><span class="pm-chip ${kindChip(m.kind)}">${esc(m.kind)}</span></td><td class="pm-meta">${esc(String(m.value||"").slice(0,160))}</td><td style="text-align:right"><button class="pm-btn sm danger" onclick="delMemory('${encodeURIComponent(m.key)}')">删除</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无记忆。</div>`;
+  box.innerHTML=`${secHead(`持久记忆（${mem.length}）`)}${memTable}
+  ${secHead("补记一条主脑记忆")}
+  <div class="pm-toolbar"><input class="pm-input" id="mkKey" placeholder="键，如 default_tone / shop_hours" style="min-width:180px"><select class="pm-input" id="mkKind" style="width:130px"><option value="preference">偏好</option><option value="fact">事实</option><option value="note">备注</option></select></div>
+  <div class="pm-toolbar"><input class="pm-input" id="mkVal" placeholder="内容，如：默认用简洁专业语气" style="flex:1"><button class="pm-btn" onclick="putMemory()">保存记忆</button></div>`;
+}
+async function putMemory(){
+  const key=$("#mkKey").value.trim();if(!key){toast("先填记忆键");return;}
+  const value=$("#mkVal").value.trim();if(!value){toast("先填内容");return;}
+  const kind=$("#mkKind").value;
+  try{await jsend("PUT",`/workspaces/${state.workspaceId}/agent/memory`,{key,value,kind});toast("记忆已保存");loadAgentMemory();}catch(e){toast(e.message);}
+}
+async function delMemory(keyEnc){
+  const key=decodeURIComponent(keyEnc);
+  if(!confirm(`确认删除记忆「${key}」？`))return;
+  try{await jsend("DELETE",`/workspaces/${state.workspaceId}/agent/memory/${keyEnc}`);toast("已删除");loadAgentMemory();}catch(e){toast(e.message);}
+}
+async function addAgent(){
+  const name=$("#agName").value.trim();if(!name){toast("请输入名称");return;}
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/agents`,{name,role:$("#agRole").value.trim()||"store_manager",status:"test"});toast("已新建");window.__agRedraw&&window.__agRedraw();}catch(e){toast(e.message);}
+}
+async function runAgent(id){
+  try{
+    const r=await jsend("POST",`/workspaces/${state.workspaceId}/agents/${id}/run`,{});
+    toast(`巡检完成：${r.allowed_count??0}/${r.call_count??0} 步通过`);
+    const calls=r.calls||[];
+    const chip=dec=>dec==="ALLOWED"?"ok":dec==="DENIED"?"bad":"warn";
+    const box=$("#agReport");
+    if(box)box.innerHTML=`${secHead(`巡检报告：${esc(r.name||"经理人")} · ${fmtTime(r.ran_at)}`)}
+    <div class="pm-meta" style="margin-bottom:8px">共 ${r.call_count??calls.length} 步，通过 ${r.allowed_count??0}${r.denied&&r.denied.length?`，拒绝 ${r.denied.length}`:""}</div>
+    ${calls.length?`<table class="pm-table"><thead><tr><th>工具</th><th>决策</th><th>结果摘要</th></tr></thead><tbody>${calls.map(c=>`<tr><td style="font-weight:600">${esc(c.tool)}</td><td><span class="pm-chip ${chip(c.decision)}">${esc(c.decision)}</span></td><td class="pm-meta">${esc(describeRes(c.result))}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">本轮无工具调用（白名单为空或无可巡检项）。</div>`}`;
+    window.__agRedraw&&window.__agRedraw();
+  }catch(e){toast(e.message);}
+}
+function describeRes(res){
+  if(res==null)return "—";
+  if(typeof res==="string")return res;
+  if(res.error)return res.error;
+  const s=JSON.stringify(res);return s.length>120?s.slice(0,120)+"…":s;
+}
+async function agentTools(id){
+  const a=(window.__agRows||[]).find(x=>x.id===id);if(!a){toast("未找到经理人");return;}
+  window.__agToolId=id;
+  const cat=await jget(`/workspaces/${state.workspaceId}/tools`);
+  const tools=(cat&&cat.tools)||[];
+  const cur=new Set(a.allowed_tools||[]);
+  const box=$("#agToolEdit");
+  box.innerHTML=`${secHead(`工具白名单：${esc(a.name)}（只勾需要的，未勾则不可调用）`)}
+  <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:280px;overflow-y:auto">
+  ${tools.map(t=>`<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid rgba(255,45,149,.15);border-radius:8px;cursor:pointer"><input type="checkbox" class="ag-tool-cb" value="${esc(t.name)}" ${cur.has(t.name)?"checked":""} style="margin-top:4px"><span><span style="font-weight:600">${esc(t.name)}</span><div class="pm-meta">${esc(t.description||"")}</div></span></label>`).join("")||'<div class="pm-meta">工具目录为空</div>'}
+  </div>
+  <div class="pm-toolbar"><button class="pm-btn" onclick="saveAgentTools()">保存白名单</button><button class="pm-btn ghost" onclick="$('#agToolEdit').innerHTML=''">取消</button></div>`;
+  box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function saveAgentTools(){
+  const id=window.__agToolId;if(!id)return;
+  const allowed=[...document.querySelectorAll(".ag-tool-cb:checked")].map(cb=>cb.value);
+  try{await jsend("PATCH",`/workspaces/${state.workspaceId}/agents/${id}`,{allowed_tools:allowed});toast("白名单已保存："+allowed.length+" 个工具");$("#agToolEdit").innerHTML="";window.__agRedraw&&window.__agRedraw();}catch(e){toast(e.message);}
+}
+async function deleteAgent(id){if(!confirm("删除该经理人？此操作不可撤销。"))return;try{await jsend("DELETE",`/workspaces/${state.workspaceId}/agents/${id}`,null);toast("已删除");window.__agRedraw&&window.__agRedraw();}catch(e){toast(e.message);}}
+
+async function sjget(p){try{return await jget(p);}catch(e){return null;}}
+async function gwExec(tool,params,redraw){
+  try{
+    const r=await jsend("POST","/gateway/execute",{tool,params});
+    if(r.decision==="ALLOWED"){toast((r.result&&r.result.error)||"已执行");}
+    else if(r.decision==="PENDING"){toast("需审批，已生成待确认项");}
+    else{toast(r.reason||r.decision||"未执行");}
+    if(redraw)redraw();
+    return r;
+  }catch(e){toast(e.message);}
+}
+function secHead(t){return `<h3 style="font-size:15px;color:#e6c6ff;letter-spacing:1px;margin:18px 0 10px">${t}</h3>`;}
+function metricBox(label,value,sub,cls){return `<div style="flex:1;min-width:150px;background:rgba(12,32,62,.72);border:1px solid #2a1538;border-radius:14px;padding:14px 16px"><div class="pm-meta">${label}</div><div style="font-size:24px;font-weight:700;color:${cls||'#eaf4ff'};margin:4px 0">${value}</div><div class="pm-meta">${sub||""}</div></div>`;}
+
+async function loadLedgerPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>结算汇总计算中…</p></div>`;
+  const c=await sjget(`/workspaces/${state.workspaceId}/commerce`);
+  const o=await sjget(`/workspaces/${state.workspaceId}/orders`);
+  let integ={adapters:[]};
+  try{integ=await sjget(`/workspaces/${state.workspaceId}/integrations/status`);}catch(e){}
+  const karma=(integ.adapters||[]).find(a=>a.key==="karma_payment")||null;
+  const rows=(o&&o.orders)||[];
+  const settled=rows.filter(x=>["PAID","SHIPPED","DELIVERED"].includes(x.status));
+  const pending=settled.reduce((s,x)=>s+Number(x.total_amount||0),0);
+  const cancel=rows.filter(x=>x.status==="CANCELLED").length;
+  body.innerHTML=`${secHead("结算政策（本地策略）")}
+  <table class="pm-table"><tbody>
+  <tr><td>自动接单</td><td style="text-align:right">${c&&c.auto_accept_orders?"开启":"关闭"}</td></tr>
+  <tr><td>最大折扣</td><td style="text-align:right">${c?c.max_discount_percent+"%":"—"}</td></tr>
+  <tr><td>审批金额阈值</td><td style="text-align:right">${c?c.approval_threshold_amount+" "+(c.currency||""):"—"}</td></tr>
+  <tr><td>支付方式</td><td style="text-align:right">${c?c.payment_method:"—"}</td></tr>
+  <tr><td>运费</td><td style="text-align:right">${c?c.shipping_fee:"—"}</td></tr></tbody></table>
+  ${secHead("本地订单汇总（非真实扣款）")}
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+  ${metricBox("有效订单",settled.length,"已支付/配送/送达","#48e6b3")}
+  ${metricBox("待结算金额","¥"+pending.toFixed(2),"本地订单合计，非平台对账","#d9a8ff")}
+  ${metricBox("已取消",cancel,"","#ff9aa8")}
+  </div>
+  ${secHead("Karma 资金联调状态（真实扣款/退款/对账）")}
+  ${karma?`<div style="border:1px solid rgba(255,150,205,.18);border-radius:10px;padding:10px 12px;background:rgba(255,150,205,.04)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-weight:600">${esc(karma.label)}</div><span class="pm-chip ${karma.configured?"ok":"warn"}">${karma.configured?"可连通测试":"缺凭证"}</span></div>
+    ${karma.missing&&karma.missing.length?`<div class="pm-meta" style="margin-top:4px">待补凭证位：${karma.missing.map(m=>esc(m.env)).join("、")}</div>`:`<div class="pm-meta" style="margin-top:4px">必填凭证已填齐，待真实 ping（不代表已连通）。</div>`}
+    <details style="margin-top:6px"><summary class="pm-meta" style="cursor:pointer">待实现真实资金方法（${(karma.methods||[]).length}）</summary><ul class="pm-meta" style="margin:6px 0 0 18px;padding:0">${(karma.methods||[]).map(m=>`<li style="margin:2px 0">${esc(m)}</li>`).join("")}</ul></details>
+  </div>`:`<div class="pm-meta">联调登记未返回（旧服务或未启用）。</div>`}
+  <div class="pm-meta" style="margin-top:14px">说明：真实扣款、退款与对账需接入 Karma 支付 API Key 后联调；此处只做本地订单金额汇总，不伪造资金流水。</div>`;
+}
+
+async function loadAnalyticsPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>聚合数据中…</p></div>`;
+  const [d,pr,od]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/dashboard`),sjget(`/workspaces/${state.workspaceId}/products`),sjget(`/workspaces/${state.workspaceId}/orders`)]);
+  const k=(d&&d.kpis)||{};const pl=(k.pipeline)||{};
+  const prods=(pr&&pr.products)||[];const orders=(od&&od.orders)||[];
+  const lowStock=prods.filter(p=>(p.stock||0)<=5);
+  const pendingShip=orders.filter(o=>o.status==="PAID");
+  const PIPE=[["new","新线索","#ff2d95"],["lead","跟进中","#f5a623"],["won","已成交","#33d69f"],["lost","已流失","#f87171"]];
+  const ptot=PIPE.reduce((a,[s])=>a+(pl[s]||0),0)||1;
+  const hbar=(label,n,max,color,unit)=>{const w=max?Math.max(3,Math.round(n/max*100)):0;return `<div style="display:flex;align-items:center;gap:12px;margin:9px 0"><div style="width:64px;font-size:13px;color:#e8dcf5;flex-shrink:0">${label}</div><div style="flex:1;height:14px;background:#1f0e2c;border-radius:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color};border-radius:8px;box-shadow:0 0 10px ${color}88;transition:width .4s"></div></div><div style="width:96px;text-align:right;font-size:13px;flex-shrink:0">${n} ${unit||""} · ${Math.round(n/ptot*100)}%</div></div>`;};
+  const OS=[["PAID","待发货","#f5a623"],["SHIPPED","配送中","#ff2d95"],["DELIVERED","已送达","#33d69f"],["CANCELLED","已取消","#f87171"]];
+  const omax=Math.max(1,...OS.map(([s])=>orders.filter(o=>o.status===s).length));
+  const obar=(label,n,max,color)=>{const w=max?Math.max(3,Math.round(n/max*100)):0;return `<div style="display:flex;align-items:center;gap:12px;margin:9px 0"><div style="width:64px;font-size:13px;color:#e8dcf5;flex-shrink:0">${label}</div><div style="flex:1;height:14px;background:#1f0e2c;border-radius:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color};border-radius:8px;box-shadow:0 0 10px ${color}88;transition:width .4s"></div></div><div style="width:70px;text-align:right;font-size:13px;flex-shrink:0">${n} 单</div></div>`;};
+  const cells=[
+    metricBox("在售商品",k.published??0,"目录 "+(k.products??0)+" · 低库存 "+(k.low_stock??0)),
+    metricBox("订单总数",k.orders??0,"待发货 "+(k.pending_ship??0)+" · 配送 "+(k.in_delivery??0)),
+    metricBox("客户数",k.customers??0,"成交 "+(pl.won??0)+" · 跟进 "+(pl.lead??0)),
+    metricBox("待审批",k.pending_approvals??0,"需主人决策","#ffc86b"),
+  ];
+  body.innerHTML=`${secHead("经营指标")}<div style="display:flex;gap:12px;flex-wrap:wrap">${cells.join("")}</div>
+  ${secHead("客户漏斗")}
+  ${PIPE.map(([s,lb,col])=>hbar(lb,pl[s]||0,ptot,col,"人")).join("")}
+  ${secHead("订单状态分布")}
+  ${OS.map(([s,lb,col])=>obar(lb,orders.filter(o=>o.status===s).length,omax,col)).join("")}
+  ${secHead("近 7 天订单趋势")}
+  ${(()=>{const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toISOString().slice(0,10);days.push([key.slice(5),orders.filter(o=>(o.created_at||"").slice(0,10)===key).length]);}const mx=Math.max(1,...days.map(x=>x[1]));return `<div style="display:flex;gap:6px;align-items:flex-end;height:130px;padding:8px 4px">${days.map(([lb,n])=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end"><div style="font-size:12px;color:#ffc2e2">${n||""}</div><div style="width:100%;max-width:34px;background:linear-gradient(180deg,#ff2d95,#4a2a63);border-radius:6px 6px 0 0;min-height:3px;height:${Math.max(3,Math.round(n/mx*84))}px;box-shadow:0 0 10px #ff2d9555"></div><div style="font-size:11px;color:#c9b3dd">${lb}</div></div>`).join("")}</div>`;})()}
+  ${secHead(`待处理告警（低库存 ${lowStock.length} · 待发货 ${pendingShip.length}）`)}
+  ${lowStock.length?`<table class="pm-table"><thead><tr><th>低库存商品</th><th>库存</th><th>操作</th></tr></thead><tbody>${lowStock.map(p=>`<tr><td><div style="font-weight:600">${esc(p.name)}</div><div class="pm-meta">${esc(p.category||"")}</div></td><td style="color:#ff9aa8;font-weight:600">${p.stock??0}</td><td style="text-align:right"><button class="pm-btn sm ghost" onclick="openPanel('product')">去补货</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">没有低库存商品。</div>`}
+  ${pendingShip.length?`<table class="pm-table"><thead><tr><th>待发货订单</th><th>金额</th><th>操作</th></tr></thead><tbody>${pendingShip.map(o=>`<tr><td><div style="font-weight:600">${esc(o.order_reference||o.id)}</div><div class="pm-meta">${esc(o.channel||"")}</div></td><td>¥${Number(o.total_amount||0).toFixed(2)}</td><td style="text-align:right"><button class="pm-btn sm" onclick="openPanel('order')">去发货</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">没有待发货订单。</div>`}
+  <div class="pm-meta" style="margin-top:12px">只读聚合看板，数据每 8 秒随总览刷新；真实趋势图表与跨期对比将在后续接入。`;
+}
+
+async function loadSecurityPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>安全自检中…</p></div>`;
+  const [rd,au,dv,dm,rp,vn]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/readiness`),sjget(`/workspaces/${state.workspaceId}/audit/integrity`),sjget(`/workspaces/${state.workspaceId}/devices`),sjget(`/workspaces/${state.workspaceId}/data-map`),sjget(`/workspaces/${state.workspaceId}/retention/policy`),sjget(`/workspaces/${state.workspaceId}/virtual-numbers`)]);
+  let ops=null;try{ops=await sjget(`/workspaces/${state.workspaceId}/ops/selfcheck`);}catch(e){}
+  const items=(rd&&rd.items)||[];
+  const devs=(dv&&dv.devices)||[];
+  const tiers=(dm&&dm.tiers)||{};const sf=(dm&&dm.sensitive_fields)||[];
+  const cell=ok=>ok?"<span class='pm-chip ok'>允许</span>":"<span class='pm-chip bad'>禁止</span>";
+  const ap="<span class='pm-chip warn'>需主人审批</span>";
+  body.innerHTML=`${secHead("系统就绪自检")}
+  <table class="pm-table"><tbody>${items.map(it=>`<tr><td><span class="pm-chip ${it.ok?"ok":"warn"}">${it.ok?"已就绪":"待配置"}</span> ${it.label}</td><td class="pm-meta" style="text-align:right">${it.detail}</td></tr>`).join("")||`<tr><td class="pm-meta">无就绪项</td></tr>`}</tbody></table>
+  ${secHead("本机运维自检（Python/依赖/数据库/目录/密钥，离线不联网）")}
+  ${ops?(()=>{const s=ops.summary||{};const lc={PASS:"ok",WARN:"warn",FAIL:"bad"};return `<div style="margin-bottom:8px"><span class="pm-chip ${s.healthy?"ok":"bad"}">${s.healthy?"本机健康":"存在 FAIL"}</span> <span class="pm-meta">通过 ${s.pass||0} · 警告 ${s.warn||0} · 失败 ${s.fail||0}</span></div><table class="pm-table"><tbody>${(ops.checks||[]).map(c=>`<tr><td><span class="pm-chip ${lc[c.level]||"info"}">${c.level}</span> ${esc(c.name)}</td><td class="pm-meta" style="text-align:right">${esc(c.detail)}</td></tr>`).join("")}</tbody></table>`;})():`<div class="pm-meta">旧服务未提供本机自检端点。</div>`}
+  ${secHead("角色 × 风险 权限矩阵（后端强制）")}
+  <table class="pm-table"><thead><tr><th>角色</th><th>R0 只读</th><th>R1 可逆草稿</th><th>R2 有限外发</th><th>R3 难逆/支付</th><th>R4 不可逆</th></tr></thead><tbody>
+  <tr><td><b>主人 owner</b></td><td>${cell(true)}</td><td>${cell(true)}</td><td>${cell(true)}</td><td>${ap}</td><td>${ap}</td></tr>
+  <tr><td><b>成员 member</b></td><td>${cell(true)}</td><td>${cell(true)}</td><td>${cell(true)}</td><td>${cell(false)}</td><td>${cell(false)}</td></tr>
+  <tr><td><b>观察者 viewer</b></td><td>${cell(true)}</td><td>${cell(false)}</td><td>${cell(false)}</td><td>${cell(false)}</td><td>${cell(false)}</td></tr>
+  </tbody></table>
+  <div class="pm-meta" style="margin:8px 0">R3/R4（支付、退款、批量改价、不可逆操作）一律走审批流，确认码只邮件发给主人，Agent 永不代确认；跨工作区查询物理隔离。</div>
+  ${secHead("数据分级与共享边界")}
+  <table class="pm-table"><thead><tr><th>级别</th><th>内容举例</th><th>共享边界</th></tr></thead><tbody>
+  <tr><td><span class="pm-chip ok">PUBLIC</span></td><td class="pm-meta">区域/类目政策规则、对外公开目录</td><td>可对外展示/分享</td></tr>
+  <tr><td><span class="pm-chip info">INTERNAL</span></td><td class="pm-meta">商品、库存、任务、目标、脚本、模块</td><td>仅限本工作区，不对外</td></tr>
+  <tr><td><span class="pm-chip warn">SENSITIVE</span></td><td class="pm-meta">客户资料、订单、会话、物流、执行记录、记忆、待办、审计</td><td>限本人/授权成员，禁止外发</td></tr>
+  <tr><td><span class="pm-chip bad">CRITICAL</span></td><td class="pm-meta">支付/钱包密钥、助记词、API密钥、连接器配置、工作区设置、审批请求</td><td>永不出域，仅密文落库，服务端不持明文，禁止导出/共享</td></tr>
+  </tbody></table>
+  ${dm?`${secHead(`本工作区数据地图（脱敏元数据，不含值）· 敏感字段 ${sf.length}`)}
+  ${Object.entries(tiers).map(([t,arr])=>`<div style="margin:6px 0"><span class="pm-chip ${t==="CRITICAL"?"bad":t==="SENSITIVE"?"warn":t==="INTERNAL"?"info":"ok"}">${t}</span> <span class="pm-meta">${(arr||[]).join("、")||"—"}</span></div>`).join("")}
+  <div class="pm-meta">自动脱敏已${dm.redaction_enabled?"启用":"关闭"}；密钥/确认码在日志与响应中一律替换为 ****。</div>`:""}
+  ${rp?`${secHead(`数据保留策略（只读）· 自动清理${rp.enabled?"启用":"关闭"}`)}
+  <table class="pm-table"><thead><tr><th>数据表</th><th>保留天数</th><th>说明</th></tr></thead><tbody>${Object.entries(rp.rules||{}).map(([t,r])=>`<tr><td class="pm-meta">${esc(t)}</td><td style="text-align:right">${r.retention_days} 天</td><td class="pm-meta">${esc(r.extra||"")}</td></tr>`).join("")}</tbody></table>
+  <div class="pm-meta" style="margin-top:6px">受保护表（永不自动清理）：${(rp.protected_tables||[]).join("、")||"—"}</div>`:""}
+  ${secHead("审计哈希链")}
+  <table class="pm-table"><tbody><tr><td>链完整性</td><td style="text-align:right"><span class="pm-chip ${au&&au.ok?"ok":"bad"}">${au?(au.ok?"完整":"被篡改"):"未知"}</span></td></tr>
+  <tr><td>审计条数</td><td style="text-align:right">${au?au.total:"—"}</td></tr></tbody></table>
+  ${secHead("已授权设备")}
+  ${devs.length?`<table class="pm-table"><thead><tr><th>设备</th><th>状态</th><th>操作</th></tr></thead><tbody>${devs.map(x=>`<tr><td><div style="font-weight:600">${esc(x.device_name||"设备")}</div>${x.authorized_at?`<div class="pm-meta">授权于 ${fmtTime(x.authorized_at)}</div>`:""}</td><td><span class="pm-chip ${x.status==="authorized"?"ok":"warn"}">${esc(x.status)}</span></td><td style="text-align:right">${(x.status==="authorized"||x.has_credential)?`<button class="pm-btn sm danger" onclick="revokeDevice('${x.id}','${esc(x.device_name||"设备")}')">撤销踢出</button>`:`<span class="pm-meta">待授权</span>`}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无已配对设备。</div>`}
+  ${secHead("AI 虚拟号（真实号码加密隐藏）")}
+  ${(()=>{const nums=(vn&&vn.numbers)||[];return nums.length?`<table class="pm-table"><thead><tr><th>虚拟号</th><th>状态</th><th>绑定客户</th><th>真实号保管</th></tr></thead><tbody>${nums.map(n=>`<tr><td><b>${esc(n.virtual_number)}</b></td><td><span class="pm-chip ${n.status==="active"||n.status==="bound"?"ok":"info"}">${esc(n.status)}</span></td><td class="pm-meta">${esc(n.bound_customer_id||"未绑定")}</td><td class="pm-meta">${n.has_real?"已加密保管（不显示）":"未存"}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">尚未分配 AI 虚拟号；分配/绑定需对接运营商并完成加密，在完整工作台操作。</div>`;})()}`;
+}
+async function revokeDevice(id,name){
+  if(!confirm(`撤销设备「${name}」的配对授权？该设备将立即失去访问。`))return;
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/devices/${id}/revoke`,{});toast("已撤销该设备");loadSecurityPanel();}catch(e){toast(e.message);}
+}
+
+async function loadSettingsPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`<div class="pm-toolbar"><button class="pm-btn" onclick="backupNow()">＋ 立即备份</button></div><div id="stBox"></div>`;
+  const s=await sjget(`/workspaces/${state.workspaceId}/settings`);
+  window.__stCfg=s;
+  const b=await sjget(`/backups`);
+  const h=await sjget(`/workspaces/${state.workspaceId}/settings/history`);
+  const row=(k,v)=>`<tr><td>${k}</td><td class="pm-meta" style="text-align:right">${v}</td></tr>`;
+  const on=v=>v?"<span class='pm-chip ok'>已配置</span>":"<span class='pm-chip warn'>未配置</span>";
+  const cfg=(o,k)=>o&&o[k]?(o[k].api_key_enc||o[k].api_key||o[k].password||o[k].password_enc||o[k].host||o[k].model?on(true):on(false)):on(false);
+  $("#stBox").innerHTML=`${secHead("配置概览（密钥不明文回显）")}
+  <table class="pm-table"><tbody>
+  ${row("模型",cfg(s,"model"))}${row("Karma 支付",cfg(s,"karma"))}${row("邮件 SMTP",cfg(s,"smtp"))}${row("聊天接入",cfg(s,"chat"))}${row("收件邮箱",s&&s.owner_email?esc(s.owner_email):"未设置")}
+  </tbody></table>
+  ${secHead("模型接入（密钥加密保存，留空则不修改）")}
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+  <input class="pm-input" id="stBase" placeholder="API Base URL，如 https://api.deepseek.com/v1" value="${esc(s&&s.model&&s.model.base_url||"")}">
+  <input class="pm-input" id="stModel" placeholder="模型名，如 deepseek-chat" value="${esc(s&&s.model&&s.model.model||"")}">
+  <input class="pm-input" id="stKey" type="password" placeholder="API Key（留空保持不变）">
+  <button class="pm-btn" onclick="saveModelCfg()">保存模型配置</button>
+  </div>
+  ${secHead("邮件通知（审批确认码，密钥加密保存）")}
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+  <input class="pm-input" id="smHost" placeholder="SMTP 主机，如 smtp.qq.com" value="${esc(s&&s.smtp&&s.smtp.host||"")}">
+  <div style="display:flex;gap:8px">
+  <input class="pm-input" id="smPort" placeholder="端口 465/587" style="width:110px" value="${esc(s&&s.smtp&&s.smtp.port!=null?s.smtp.port:"")}">
+  <label style="display:flex;align-items:center;gap:6px" class="pm-meta"><input type="checkbox" id="smTls" ${!s||!s.smtp||s.smtp.tls!==false?"checked":""}> SSL/TLS</label>
+  </div>
+  <input class="pm-input" id="smFrom" placeholder="发件邮箱 from" value="${esc(s&&s.smtp&&s.smtp.from||"")}">
+  <input class="pm-input" id="smUser" placeholder="登录账号（通常同发件邮箱）" value="${esc(s&&s.smtp&&s.smtp.user||"")}">
+  <input class="pm-input" id="smPass" type="password" placeholder="邮箱授权码/密码（留空保持不变）">
+  <input class="pm-input" id="smOwner" placeholder="审批码收件邮箱 owner_email" value="${esc(s&&s.owner_email||"")}">
+  <div style="display:flex;gap:8px">
+  <button class="pm-btn" onclick="saveSmtpCfg()">保存邮件配置</button>
+  <button class="pm-btn ghost" onclick="testSmtp()">发测试邮件</button>
+  </div>
+  </div>
+  ${secHead("备份记录")}
+  ${(b&&b.backups&&b.backups.length)?`<table class="pm-table"><thead><tr><th>文件 / 原因</th><th>大小</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>${b.backups.map(x=>{const [sb,sc]=x.status==="ok"?["ok","ok"]:["失败","bad"];return `<tr><td><div style="font-weight:600">${esc(x.filename)}</div><div class="pm-meta">${esc(x.reason||"manual")}${x.restored_at?" · 已恢复":""}</div></td><td class="pm-meta">${(x.size_bytes/1024).toFixed(1)} KB</td><td><span class="pm-chip ${sc}">${sb}</span></td><td class="pm-meta">${fmtTime(x.created_at)}</td><td style="text-align:right">${x.status==="ok"&&!x.restored_at?`<button class="pm-btn sm danger" onclick="restoreBackup('${x.id}')">恢复</button>`:`<span class="pm-meta">—</span>`}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-meta">暂无备份，点上方立即备份。</div>`}
+  ${secHead("配置版本历史（只读）")}
+  ${(()=>{const vs=(h&&h.versions)||[];return vs.length?`<table class="pm-table"><thead><tr><th>版本</th><th>说明</th><th>时间</th></tr></thead><tbody>${vs.map(v=>`<tr><td><span class="pm-chip info">v${v.version}</span></td><td class="pm-meta">${esc(v.note||"—")}</td><td class="pm-meta">${fmtTime(v.created_at)}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无配置快照。</div>`;})()}`;
+}
+async function saveModelCfg(){
+  const model={base_url:$("#stBase").value.trim(),model:$("#stModel").value.trim()};
+  const key=$("#stKey").value.trim();
+  if(key)model.api_key=key;
+  try{await jsend("PUT",`/workspaces/${state.workspaceId}/settings`,{model});toast("模型配置已保存");loadSettingsPanel();}catch(e){toast(e.message);}
+}
+async function saveSmtpCfg(){
+  const smtp={host:$("#smHost").value.trim(),port:parseInt($("#smPort").value,10)||465,from:$("#smFrom").value.trim(),user:$("#smUser").value.trim(),tls:$("#smTls").checked};
+  const pass=$("#smPass").value.trim();
+  if(pass)smtp.password=pass;
+  const owner_email=$("#smOwner").value.trim();
+  try{await jsend("PUT",`/workspaces/${state.workspaceId}/settings`,{smtp,owner_email});toast("邮件配置已保存");loadSettingsPanel();}catch(e){toast(e.message);}
+}
+async function testSmtp(){
+  try{const r=await jsend("POST",`/workspaces/${state.workspaceId}/settings/test-email`,{});
+    if(r&&r.sent){toast("测试邮件已发送至 "+(r.to||""));}
+    else{toast("未发出："+((r&&(r.error||r.note))||"SMTP 未配置"));}
+  }catch(e){toast(e.message);}
+}
+async function backupNow(){try{await jsend("POST","/backups",{});toast("备份已创建");loadSettingsPanel();}catch(e){toast(e.message);}}
+async function restoreBackup(id){
+  if(!confirm("恢复将用该备份覆盖当前工作区数据（R4 不可逆）。系统会先自动建立一份安全快照兜底。\n\n确定继续？"))return;
+  if(!confirm("再次确认：当前未备份的改动将被替换，恢复后页面自动刷新。真的要恢复吗？"))return;
+  try{await jsend("POST",`/backups/${id}/restore`,{confirm:true});toast("恢复完成，正在刷新…");setTimeout(()=>location.reload(),900);}catch(e){toast(e.message);}
+}
+
+async function loadAccountPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>读取账户信息…</p></div>`;
+  const [d,s]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/dashboard`),sjget(`/workspaces/${state.workspaceId}/settings`)]);
+  const m=(d&&d.merchant)||{};
+  const cfgOn=o=>o&&(o.api_key_enc||o.api_key||o.password||o.password_enc||o.host||o.model);
+  const chip=v=>v?"<span class='pm-chip ok'>已配置</span>":"<span class='pm-chip warn'>未配置</span>";
+  body.innerHTML=`${secHead("工作区身份")}
+  <table class="pm-table"><tbody>
+  <tr><td>工作区名称</td><td style="text-align:right;font-weight:600">${esc(state.workspaceName||m.shop_name||"未命名")}</td></tr>
+  <tr><td>店铺名称</td><td class="pm-meta" style="text-align:right">${esc(m.shop_name||"—")}</td></tr>
+  <tr><td>行业 / 区域</td><td class="pm-meta" style="text-align:right">${esc(m.category||"—")} · ${esc(m.region||"—")}</td></tr>
+  <tr><td>审批收件邮箱</td><td class="pm-meta" style="text-align:right">${s&&s.owner_email?esc(s.owner_email):"未设置（确认码将无法送达）"}</td></tr>
+  </tbody></table>
+  ${secHead("配置状态（密钥不明文回显）")}
+  <table class="pm-table"><tbody>
+  <tr><td>对话模型</td><td style="text-align:right">${chip(cfgOn(s&&s.model))}</td></tr>
+  <tr><td>Karma 支付</td><td style="text-align:right">${chip(cfgOn(s&&s.karma))}</td></tr>
+  <tr><td>邮件 SMTP</td><td style="text-align:right">${chip(cfgOn(s&&s.smtp))}</td></tr>
+  </tbody></table>
+  <div class="pm-toolbar" style="margin-top:12px"><button class="pm-btn ghost" onclick="openPanel('settings')">去系统设置</button><button class="pm-btn ghost" onclick="openPanel('security')">查看权限与安全边界</button></div>`;
+}
+
+async function loadOverviewPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>汇总经营数据…</p></div>`;
+  const [d,gl]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/dashboard`),sjget(`/workspaces/${state.workspaceId}/goals`)]);
+  let b0=null;try{b0=await sjget(`/workspaces/${state.workspaceId}/briefing?period=daily`);}catch(e){}
+  loadSnapshots();
+  const k=(d&&d.kpis)||{};const pl=(k.pipeline)||{};
+  const cells=[
+    metricBox("在售商品",k.published??0,"目录 "+(k.products??0)+" · 低库存 "+(k.low_stock??0)),
+    metricBox("订单",k.orders??0,"待发货 "+(k.pending_ship??0)+" · 配送 "+(k.in_delivery??0)),
+    metricBox("客户",k.customers??0,"成交 "+(pl.won??0)+" · 跟进 "+(pl.lead??0)),
+    metricBox("待审批",k.pending_approvals??0,"需主人决策","#ffc86b"),
+  ];
+  const pend=(d&&d.pending_approvals)||[];const todos=(d&&d.pending_todos)||[];
+  body.innerHTML=`${secHead("经营总览")}<div style="display:flex;gap:12px;flex-wrap:wrap">${cells.join("")}</div>
+  ${secHead("今日行动清单")}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px">
+    ${[
+      [pend.length,"项待审批","approval","#ffc86b"],
+      [k.pending_ship??0,"笔待发货","order","#ff2d95"],
+      [k.low_stock??0,"个低库存","product","#ff9aa8"],
+      [todos.length,"条待办","task","#33d69f"],
+    ].map(([n,lb,panel,col])=>`<button class="pm-btn sm ghost" style="border-color:${col}55" onclick="openPanel('${panel}')"><span style="color:${col};font-weight:700">${n}</span> ${lb}</button>`).join("")}
+  </div>
+  ${secHead("经营简报")}
+  <div class="pm-toolbar" style="gap:8px">
+    <button class="pm-btn sm" onclick="loadBriefing('daily')">今日</button>
+    <button class="pm-btn sm ghost" onclick="loadBriefing('weekly')">近 7 天</button>
+    <button class="pm-btn sm ghost" onclick="saveSnapshot()">存档今日快照</button>
+  </div>
+  <div id="briefBox">${renderBriefing(b0)}</div>
+  <div id="snapBox"></div>
+  ${secHead(`待审批（${pend.length}）`)}
+  ${pend.length?`<table class="pm-table"><tbody>${pend.map(a=>`<tr><td><div style="font-weight:600">${esc(a.action)}</div><div class="pm-meta">${esc(a.reason||"")}</div></td><td style="text-align:right"><button class="pm-btn sm" onclick="openPanel('approval')">去审批</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">没有待审批。</div>`}
+  ${secHead(`待办（${todos.length}）`)}
+  ${todos.length?`<table class="pm-table"><tbody>${todos.slice(0,8).map(t=>`<tr><td><div style="font-weight:600">${esc(t.title||"")}</div><div class="pm-meta">${esc(t.detail||"")}</div></td><td style="text-align:right"><button class="pm-btn sm ghost" onclick="openPanel('task')">去处理</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无待办。</div>`}
+  ${secHead(`经营目标（${(gl&&gl.goals||[]).length}）`)}
+  <div class="pm-toolbar"><input class="pm-input" id="glTitle" placeholder="目标标题" style="min-width:200px"><input class="pm-input" id="glCrit" placeholder="成功标准（选填）" style="min-width:180px"><button class="pm-btn" onclick="addGoal()">＋ 新建目标</button></div>
+  ${(()=>{const gs=(gl&&gl.goals)||[];return gs.length?`<table class="pm-table"><thead><tr><th>目标 / 标准</th><th>进度备注</th><th>状态</th><th>截止</th><th>操作</th></tr></thead><tbody>${gs.map(g=>`<tr><td><div style="font-weight:600">${esc(g.title)}</div><div class="pm-meta">${esc(g.success_criteria||"")}</div></td><td class="pm-meta">${esc(g.progress_note||"—")}</td><td><span class="pm-chip ${g.status==="done"?"ok":"info"}">${g.status==="done"?"完成":"进行中"}</span></td><td class="pm-meta">${g.due_at?fmtTime(g.due_at):"—"}</td><td style="text-align:right;white-space:nowrap"><button class="pm-btn sm ${g.status==="done"?"ghost":""}" onclick="toggleGoal('${g.id}','${g.status}')">${g.status==="done"?"重开":"标记完成"}</button> <button class="pm-btn sm ghost" onclick="updateGoalNote('${g.id}')">备注</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无经营目标。</div>`;})()}`;
+}
+function renderBriefing(b){
+  if(!b)return `<div class="pm-meta">简报暂不可用（旧服务无端点或无权限）。</div>`;
+  const nums=[
+    ["窗口订单",b.orders_in_window??0],["本地成交 ¥",(b.revenue_local??0).toFixed(2)],
+    ["新增客户",b.new_customers??0],["待发货",b.pending_ship??0],
+    ["待办",b.pending_todos??0],["待审批",b.pending_approvals??0],
+  ];
+  return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 10px">${nums.map(([n,v])=>`<div style="flex:1 1 90px;min-width:90px;padding:10px 12px;border-radius:10px;background:rgba(255,45,149,.07);border:1px solid rgba(255,45,149,.18)"><div class="pm-meta">${esc(n)}</div><div style="font-size:18px;font-weight:700;color:#ffc2e2">${esc(String(v))}</div></div>`).join("")}</div>
+  ${(b.highlights||[]).map(h=>`<div style="padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.08)"><span style="color:#ffc2e2">●</span> ${esc(h)}</div>`).join("")}
+  <div class="pm-meta" style="margin-top:8px">${esc(b.caveat||"")}</div>`;
+}
+async function loadBriefing(period){
+  try{const b=await sjget(`/workspaces/${state.workspaceId}/briefing?period=${period}`);const box=$("#briefBox");if(box)box.innerHTML=renderBriefing(b);}catch(e){toast(e.message);}
+}
+async function saveSnapshot(){
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/briefing/snapshot`);toast("今日快照已存档");loadSnapshots();}catch(e){toast(e.message);}
+}
+async function loadSnapshots(){
+  const box=$("#snapBox");if(!box)return;
+  try{
+    const d=await sjget(`/workspaces/${state.workspaceId}/briefing/snapshots`);
+    const rows=(d&&d.snapshots)||[];
+    box.innerHTML=`<div style="margin-top:12px">${secHead(`历史快照（${rows.length}）`)}
+    ${rows.length?`<table class="pm-table"><thead><tr><th>日期</th><th>窗口订单</th><th>本地成交 ¥</th><th>新增客户</th><th>待审批</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="pm-meta">${esc(r.date)}</td><td>${r.orders_in_window??0}</td><td>¥${Number(r.revenue_local??0).toFixed(2)}</td><td>${r.new_customers??0}</td><td>${r.pending_approvals??0}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无存档快照，点「存档今日快照」保存当日经营结果。</div>`}</div>`;
+  }catch(e){box.innerHTML="";}
+}
+async function addGoal(){
+  const title=$("#glTitle").value.trim();if(!title){toast("请输入目标标题");return;}
+  const success_criteria=$("#glCrit").value.trim();
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/goals`,{title,success_criteria});toast("目标已创建");loadOverviewPanel();}catch(e){toast(e.message);}
+}
+async function toggleGoal(id,status){
+  const next=status==="done"?"active":"done";
+  try{await jsend("PATCH",`/workspaces/${state.workspaceId}/goals/${id}`,{status:next});toast(next==="done"?"目标已完成":"已重开为进行中");loadOverviewPanel();}catch(e){toast(e.message);}
+}
+async function updateGoalNote(id){
+  const note=prompt("更新进度备注：");if(note===null)return;
+  try{await jsend("PATCH",`/workspaces/${state.workspaceId}/goals/${id}`,{progress_note:note.trim()});toast("备注已更新");loadOverviewPanel();}catch(e){toast(e.message);}
+}
+
+async function loadSystemPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>读取系统状态…</p></div>`;
+  const [h,rd,m,al,jb]=await Promise.all([sjget("/health"),sjget(`/workspaces/${state.workspaceId}/readiness`),sjget(`/workspaces/${state.workspaceId}/metrics`),sjget(`/workspaces/${state.workspaceId}/alerts`),sjget(`/workspaces/${state.workspaceId}/jobs`)]);
+  let lg=null;try{lg=await sjget(`/workspaces/${state.workspaceId}/system/logs?lines=80`);}catch(e){}
+  const items=(rd&&rd.items)||[];
+  const up=Math.floor((m&&m.uptime_seconds)||0);
+  const upStr=`${Math.floor(up/3600)}时${Math.floor(up%3600/60)}分${up%60}秒`;
+  const mets=(m&&m.metrics)||{};
+  const counters=Object.entries(mets).filter(([,v])=>v.kind==="counter").map(([n,v])=>[n,v.value]);
+  body.innerHTML=`${secHead("健康与运行")}
+  <table class="pm-table"><tbody>
+  <tr><td>服务健康</td><td style="text-align:right"><span class="pm-chip ${h&&h.status==="ok"?"ok":"warn"}">${h&&h.status==="ok"?"正常":"检查中"}</span></td></tr>
+  <tr><td>数据库就绪</td><td style="text-align:right"><span class="pm-chip ${rd?"ok":"warn"}">${rd?"可读写":"待检测"}</span></td></tr>
+  <tr><td>连续运行</td><td class="pm-meta" style="text-align:right">${upStr}</td></tr>
+  </tbody></table>
+  ${secHead("实时告警")}
+  ${(()=>{const als=(al&&al.alerts)||[];return als.length?`<table class="pm-table"><thead><tr><th>级别</th><th>规则 / 说明</th><th>当前 / 阈值</th></tr></thead><tbody>${als.map(a=>{const sc=a.severity==="critical"?"bad":"warn";return `<tr><td><span class="pm-chip ${sc}">${a.severity==="critical"?"严重":"警告"}</span></td><td><div style="font-weight:600">${esc(a.rule)}</div><div class="pm-meta">${esc(a.message)}</div></td><td class="pm-meta" style="text-align:right">${a.value} / ${a.threshold}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-meta">当前无触发告警。</div>`;})()}
+  ${secHead("定时任务")}
+  ${(()=>{const jobs=(jb&&jb.jobs)||[];const trig=t=>{t=t||{};const ty=t.type||"interval";if(ty==="once")return `一次性 @ ${t.at||"—"}`;if(ty==="event")return `事件：${t.event||"—"}`;return `每 ${t.minutes||60} 分钟`;};return jobs.length?`<table class="pm-table"><thead><tr><th>任务 / 目标</th><th>触发</th><th>状态</th><th>上次 / 下次</th><th>操作</th></tr></thead><tbody>${jobs.map(j=>`<tr><td><div style="font-weight:600">${esc(j.name)}</div><div class="pm-meta">${esc(j.goal||"")}</div></td><td class="pm-meta">${trig(j.trigger)}</td><td><span class="pm-chip ${j.enabled?"ok":"info"}">${j.enabled?"启用":"停用"}</span></td><td class="pm-meta">${fmtTime(j.last_run_at)}<br>${fmtTime(j.next_run_at)}</td><td style="text-align:right;white-space:nowrap"><button class="pm-btn sm ${j.enabled?"ghost":""}" onclick="toggleJob('${j.id}',${j.enabled})">${j.enabled?"停用":"启用"}</button> <button class="pm-btn sm danger" onclick="deleteJob('${j.id}')">删除</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无定时任务。</div>`;})()}
+  ${secHead("就绪自检项")}
+  <table class="pm-table"><tbody>${items.map(it=>`<tr><td><span class="pm-chip ${it.ok?"ok":"warn"}">${it.ok?"就绪":"待配置"}</span> ${esc(it.label)}</td><td class="pm-meta" style="text-align:right">${esc(it.detail)}</td></tr>`).join("")||`<tr><td class="pm-meta">无就绪项</td></tr>`}</tbody></table>
+  ${secHead("运行计数")}
+  ${counters.length?`<table class="pm-table"><tbody>${counters.map(([n,v])=>`<tr><td class="pm-meta">${esc(n)}</td><td style="text-align:right;font-weight:600">${v}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无请求计数。</div>`}
+  ${lg?secHead(`最近运行日志（已脱敏 · 仅主人可见）${lg.file?` · ${esc(lg.file)}`:""}`)+(lg.empty||!lg.lines||!lg.lines.length?`<div class="pm-meta">暂无日志文件（用启动脚本运行后生成）。</div>`:`<pre style="max-height:220px;overflow:auto;margin:0;padding:10px;border-radius:8px;background:rgba(0,0,0,.35);font-family:Consolas,monospace;font-size:11.5px;line-height:1.6;color:#f3d8ff;white-space:pre-wrap">${lg.lines.map(esc).join("\n")}</pre>`):""}`;
+}
+
+// ---- 神经调度网：触角责任 + 强制升级 + 任务落账泳道（只读）----
+const NEURAL_AUTO={AUTO:["自主执行","ok"],POLICY:["政策内自主","info"],ESCALATE:["需老板拍板","bad"]};
+const NEURAL_WORK={ROUTINE:"固定重复·低错误",ANALYSIS:"需分析动脑"};
+const LANE_LABEL={queued:"排队待办",pending_approval:"待审批",executing:"执行中",completed:"已完成",failed:"失败/未知",escalated:"需老板拍板"};
+async function loadNeuralPanel(){
+  if(window.__neuralTimer){clearInterval(window.__neuralTimer);window.__neuralTimer=null;}
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>连接神经调度网…</p></div>`;
+  const [ov,tc,board]=await Promise.all([
+    sjget(`/workspaces/${state.workspaceId}/nervous/overview`),
+    sjget(`/workspaces/${state.workspaceId}/nervous/tentacles`),
+    sjget(`/workspaces/${state.workspaceId}/ledger/board`),
+  ]);
+  const domains=(tc&&tc.tentacles)||[];
+  const force=(ov&&ov.force_escalate)||[];
+  const dist=(ov&&ov.autonomy_distribution)||{};
+  const lanes=(board&&board.lanes)||{};
+  const counts=(board&&board.counts)||{};
+  const kpi=[
+    ["责任域",ov?ov.domains_total:"—"],
+    ["登记工具",ov?ov.tools_registered:"—"],
+    ["自主执行",dist.AUTO||0],
+    ["政策内自主",dist.POLICY||0],
+    ["需拍板",dist.ESCALATE||0],
+  ];
+  let html=`<div class="neural-kpis-wrap"><div class="neural-kpis">${kpi.map(([k,v])=>`<div class="nk-chip"><span>${k}</span><b>${v}</b></div>`).join("")}</div><button class="pm-btn sm ghost neural-refresh" onclick="loadNeuralPanel()">刷新</button></div>`;
+  html+=secHead("强制升级 · 必须老板拍板（Agent 不自行执行）");
+  html+=force.length?`<div class="neural-force">${force.map(f=>`<div class="nf-row"><span class="pm-chip bad">${esc(f.tool)}</span><span class="nf-owner">负责：${esc(f.owner)}</span><span class="nf-reason">${esc(f.reason)}</span></div>`).join("")}</div>`:`<div class="pm-meta">当前无强制升级动作。</div>`;
+  html+=secHead("任务落账状态机");
+  const laneKeys=["queued","pending_approval","executing","completed","failed","escalated"];
+  html+=`<div class="lane-grid">${laneKeys.map(k=>{
+    const items=lanes[k]||[];
+    return `<div class="lane-col lane-${k}"><h4>${LANE_LABEL[k]} <b>${counts[k]||0}</b></h4>${items.length?items.slice(0,6).map(it=>`<div class="lane-item" title="${esc(it.title||"")}"><span>${esc(it.title||it.kind)}</span><small>${esc(it.owner||"")}</small></div>`).join(""):`<div class="lane-empty">空</div>`}</div>`;
+  }).join("")}</div>`;
+  html+=secHead("触角责任网 · 谁负责 / 边界 / 预案");
+  html+=`<div class="domain-grid">${domains.map(d=>{
+    const al=NEURAL_AUTO[d.autonomy]||["","info"];
+    return `<div class="domain-card">
+      <header><strong>${esc(d.name)}</strong><span class="pm-chip ${al[1]}">${al[0]}</span></header>
+      <div class="dc-meta">角色：${esc(d.role)} · ${NEURAL_WORK[d.work]||d.work} · 优先级 ${esc(d.priority)}</div>
+      <p class="dc-mission">${esc(d.mission)}</p>
+      <div class="dc-row"><span class="dc-k">权限边界</span><span>${esc(d.boundary)}</span></div>
+      <div class="dc-row"><span class="dc-k">红线</span><span class="dc-bad">${(d.forbidden||[]).join("；")}</span></div>
+      <div class="dc-row"><span class="dc-k">工具</span><span class="dc-tools">${(d.tools||[]).map(t=>`<code>${esc(t)}</code>`).join(" ")}</span></div>
+      <details class="dc-plan"><summary>展开执行方案 / 退路 / 最坏结果</summary>
+        <div class="dc-row"><span class="dc-k">主方案</span><span>${esc(d.plan||"")}</span></div>
+        <div class="dc-row"><span class="dc-k">退路B</span><span>${esc(d.plan_b||"")}</span></div>
+        <div class="dc-row"><span class="dc-k">成本</span><span>${esc(d.cost||"")}</span></div>
+        <div class="dc-row"><span class="dc-k">最坏结果</span><span class="dc-warn">${esc(d.worst_case||"")}</span></div>
+        <div class="dc-row"><span class="dc-k">回执</span><span>${esc(d.receipt||"")}</span></div>
+      </details>
+    </div>`;
+  }).join("")}</div>`;
+  body.innerHTML=html;
+  window.__neuralTimer=setInterval(()=>{
+    if(!$("#panelOverlay").classList.contains("open")){clearInterval(window.__neuralTimer);window.__neuralTimer=null;return;}
+    loadNeuralPanel();
+  },15000);
+}
+async function loadNotifyPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>聚合通知中…</p></div>`;
+  const [ap,td]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/approvals`),sjget(`/workspaces/${state.workspaceId}/todos?status=pending`)]);
+  let al=null;try{al=await sjget(`/workspaces/${state.workspaceId}/alerts`);}catch(e){}
+  let pl=null;try{pl=await sjget(`/workspaces/${state.workspaceId}/products`);}catch(e){}
+  const alerts=(al&&al.alerts)||[];
+  const lowStock=((pl&&pl.products)||[]).filter(p=>(p.stock||0)<=5);
+  const apps=(ap&&ap.approvals)||[];const todos=(td&&td.todos)||[];
+  const pend=apps.filter(a=>a.status==="PENDING");
+  const must=todos.filter(t=>t.kind==="must_confirm");
+  const other=todos.filter(t=>t.kind!=="must_confirm");
+  body.innerHTML=`${secHead(`低库存提醒（${lowStock.length}）`)}
+  ${lowStock.length?`<table class="pm-table"><thead><tr><th>商品</th><th>库存</th><th>操作</th></tr></thead><tbody>${lowStock.map(p=>`<tr><td><div style="font-weight:600">${esc(p.name)}</div><div class="pm-meta">${esc(p.category||"")}</div></td><td style="color:#ff9aa8;font-weight:600">${p.stock??0}</td><td style="text-align:right"><button class="pm-btn sm ghost" onclick="openPanel('product')">去补货</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">没有低库存商品。</div>`}
+  ${secHead(`系统告警（${alerts.length}）`)}
+  ${alerts.length?`<table class="pm-table"><thead><tr><th>级别</th><th>告警内容</th><th>当前 / 阈值</th></tr></thead><tbody>${alerts.map(a=>`<tr><td><span class="pm-chip ${a.level==="critical"?"bad":"warn"}">${a.level||"warn"}</span></td><td><div style="font-weight:600">${esc(a.message||"")}</div><div class="pm-meta">${esc(a.detail||"")}</div></td><td class="pm-meta">${esc(String(a.value??"—"))} / ${esc(String(a.threshold??"—"))}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">当前无触发的系统告警。</div>`}
+  ${secHead(`待审批（${pend.length}）`)}
+  ${pend.length?`<table class="pm-table"><thead><tr><th>动作 / 原因</th><th>风险</th><th>时间</th><th>操作</th></tr></thead><tbody>${pend.map(a=>{const[rl,rc]=RISK_LABEL[a.risk_level]||RISK_LABEL.low;return `<tr><td><div style="font-weight:600">${esc(a.action)}</div><div class="pm-meta">${esc(a.reason||"")}</div></td><td><span class="pm-chip ${rc}">${rl}</span></td><td class="pm-meta">${fmtTime(a.created_at)}</td><td style="text-align:right;white-space:nowrap"><button class="pm-btn sm" onclick="notifyDecision('${a.id}',true)">批准</button> <button class="pm-btn sm danger" onclick="notifyDecision('${a.id}',false)">拒绝</button></td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-meta">没有待审批请求。</div>`}
+  ${secHead(`待确认（${must.length}）`)}
+  ${must.length?`<table class="pm-table"><tbody>${must.map(t=>`<tr><td><div style="font-weight:600">${esc(t.title)}</div><div class="pm-meta">${esc(t.detail||"")}</div></td><td class="pm-meta" style="text-align:right">${fmtTime(t.created_at)}</td><td style="text-align:right"><button class="pm-btn sm" onclick="openPanel('task')">去处理</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">没有等待确认的事项。</div>`}
+  ${secHead(`其他待办（${other.length}）`)}
+  ${other.length?`<table class="pm-table"><tbody>${other.map(t=>`<tr><td><div style="font-weight:600">${esc(t.title)}</div><div class="pm-meta">${esc(t.detail||"")}</div></td><td class="pm-meta" style="text-align:right">${KIND_LABEL[t.kind]?KIND_LABEL[t.kind][0]:"待办"} · ${fmtTime(t.created_at)}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">没有其他待办。</div>`}`;
+}
+
+// ---- 全局搜索（Ctrl+K）：跨商品/客户/订单/待办/经理人检索 + 命令直达 ----
+let __searchCache=null;
+function closeSearch(){$("#searchOverlay").classList.remove("open");}
+function hit(text,q){return !q||String(text??"").toLowerCase().includes(q.toLowerCase());}
+async function openSearch(){
+  $("#searchOverlay").classList.add("open");
+  const inp=$("#searchInput");inp.value="";$("#searchResults").innerHTML=`<div class="sr-empty">检索中…</div>`;
+  try{
+    const [p,c,o,t,a]=await Promise.all([
+      sjget(`/workspaces/${state.workspaceId}/products`),
+      sjget(`/workspaces/${state.workspaceId}/customers`),
+      sjget(`/workspaces/${state.workspaceId}/orders`),
+      sjget(`/workspaces/${state.workspaceId}/todos?status=pending`),
+      sjget(`/workspaces/${state.workspaceId}/agents`),
+    ]);
+    __searchCache={products:(p&&p.products)||[],customers:(c&&c.customers)||[],orders:(o&&o.orders)||[],todos:(t&&t.todos)||[],agents:(a&&a.agents)||[]};
+  }catch(e){__searchCache={products:[],customers:[],orders:[],todos:[],agents:[]};}
+  setTimeout(()=>inp.focus(),60);
+}
+function runSearch(q){
+  q=(q||"").trim();const box=$("#searchResults");
+  if(!__searchCache){box.innerHTML=`<div class="sr-empty">数据未加载</div>`;return;}
+  if(!q){box.innerHTML=`<div class="sr-empty">输入关键词检索，或直接输入命令（如：打开订单 / 查库存），回车直达。</div>`;return;}
+  const ic='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';let html="";
+  const grp=(label,items,render)=>{if(items.length)html+=`<div class="sr-group">${label}（${items.length}）</div>`+items.map(render).join("");};
+  const go=k=>`closeSearch();openPanel('${k}')`;
+  grp("商品",__searchCache.products.filter(x=>hit(x.name,q)||hit(x.category,q)),x=>`<button class="sr-item" onclick="${go("product")}"><span class="si-ic">${ic}<path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/></span><div><strong>${esc(x.name)}</strong><small>${esc(x.category||"")} · ¥${Number(x.price||0).toFixed(2)} · 库存${x.stock??0}</small></div></button>`);
+  grp("客户",__searchCache.customers.filter(x=>hit(x.name,q)||hit(x.external_id,q)),x=>`<button class="sr-item" onclick="${go("customer")}"><span class="si-ic">${ic}<circle cx="9" cy="8" r="3.2"/><path d="M3 20c.7-3.4 3-5 6-5s5.3 1.6 6 5"/></span><div><strong>${esc(x.name||x.external_id||"未命名")}</strong><small>${esc(x.channel||"")} · ${CUST_ST[x.stage]?CUST_ST[x.stage][0]:"—"}</small></div></button>`);
+  grp("订单",__searchCache.orders.filter(x=>hit(x.order_reference,q)||hit(x.channel,q)),x=>`<button class="sr-item" onclick="${go("order")}"><span class="si-ic">${ic}<rect x="3" y="6" width="18" height="13" rx="2"/></span><div><strong>${esc(x.order_reference||x.id)}</strong><small>${esc(x.channel||"")} · ¥${Number(x.total_amount||0).toFixed(2)} · ${ORDER_ST[x.status]?ORDER_ST[x.status][0]:"—"}</small></div></button>`);
+  grp("待办",__searchCache.todos.filter(x=>hit(x.title,q)),x=>`<button class="sr-item" onclick="${go("task")}"><span class="si-ic">${ic}<path d="M9 11l3 3L22 4"/></span><div><strong>${esc(x.title)}</strong><small>${KIND_LABEL[x.kind]?KIND_LABEL[x.kind][0]:"待办"} · ${fmtTime(x.created_at)}</small></div></button>`);
+  grp("经理人",__searchCache.agents.filter(x=>hit(x.name,q)||hit(x.role,q)),x=>`<button class="sr-item" onclick="${go("agent")}"><span class="si-ic">${ic}<rect x="7" y="7" width="10" height="10" rx="2"/></span><div><strong>${esc(x.name)}</strong><small>${esc(x.role)} · ${esc(x.status||"")}</small></div></button>`);
+  box.innerHTML=html||`<div class="sr-empty">没有匹配「${esc(q)}」的记录，回车将把它交给主脑处理。</div>`;
+}
+
+// ---- Agent 技能市场：浏览 / 安装 / 卸载已验证技能 ----
+async function loadMarketPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>加载技能市场…</p></div>`;
+  const d=await sjget("/skills");const skills=(d&&d.skills)||[];
+  const inst=skills.filter(s=>s.installed).length;
+  body.innerHTML=`${secHead(`已验证技能市场（共 ${skills.length} · 已装 ${inst}）`)}
+  ${skills.length?`<table class="pm-table"><thead><tr><th>技能 / 分类</th><th>说明</th><th>验证</th><th>操作</th></tr></thead><tbody>${skills.map(s=>`<tr><td><div style="font-weight:600">${esc(s.title||s.id)}</div><div class="pm-meta">${esc(s.category||"")}</div></td><td style="text-align:left"><div class="pm-meta">${esc(s.description||"")}</div><div class="pm-meta">${esc(s.proof||"")}</div></td><td><span class="pm-chip ${s.verified?"ok":"info"}">${s.verified?"已验证":"待验证"}</span></td><td style="text-align:right">${s.installed?`<button class="pm-btn sm danger" onclick="uninstallSkill('${s.id}')">卸载</button>`:`<button class="pm-btn sm" onclick="installSkill('${s.id}')">安装</button>`}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-empty"><p>市场暂无技能。</p></div>`}`;
+}
+async function installSkill(id){try{await jsend("POST",`/workspaces/${state.workspaceId}/skills/${id}/install`,{});toast("技能已安装");loadMarketPanel();}catch(e){toast(e.message);}}
+async function uninstallSkill(id){if(!confirm("确认卸载该技能？"))return;try{await jsend("POST",`/workspaces/${state.workspaceId}/skills/${id}/uninstall`,{});toast("已卸载");loadMarketPanel();}catch(e){toast(e.message);}}
+
+async function loadConnectPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>连接目录加载中…</p></div>`;
+  const [cn,fn,tk]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/connectors`),sjget(`/workspaces/${state.workspaceId}/functions`),sjget(`/workspaces/${state.workspaceId}/tools`)]);
+  let inte={total:0,ready_to_probe:0,unavailable:0,adapters:[]};
+  try{inte=await sjget(`/workspaces/${state.workspaceId}/integrations/status`);}catch(e){}
+  const conns=(cn&&cn.connectors)||[];const fns=(fn&&fn.functions)||[];const tools=(tk&&tk.tools)||[];const adapters=(inte&&inte.adapters)||[];
+  const rchip=rl=>{const[lb,rc]=RISK_LABEL[rl]||RISK_LABEL.low;return `<span class="pm-chip ${rc}">${lb}</span>`;};
+  body.innerHTML=`
+  ${secHead(`外部连接器（${conns.length}）`)}
+  ${conns.length?`<table class="pm-table"><thead><tr><th>名称 / 类型</th><th>鉴权</th><th>密钥</th><th>状态</th></tr></thead><tbody>${conns.map(c=>`<tr><td><div style="font-weight:600">${esc(c.name||c.connector_type)}</div><div class="pm-meta">${esc(c.connector_type)} · ${esc(c.method||"GET")} ${esc(c.endpoint_url||"")}</div></td><td><span class="pm-chip info">${esc(c.auth_type||"none")}</span></td><td>${c.has_secret?`<span class="pm-chip ok">已配置·不回显</span>`:`<span class="pm-meta">未配置</span>`}</td><td><span class="pm-chip ${c.configured?"ok":"warn"}">${c.configured?"已接入":"待配置"}</span></td></tr>`).join("")}</tbody></table>`:`<div class="pm-empty"><p>尚未接入外部渠道（电商/物流/支付/IM）。连接器密钥只加密落库、永不回显，接入后在此显示状态。</p></div>`}
+  ${secHead(`外部联调适配（${adapters.length} · 可连通测试 ${inte.ready_to_probe||0} / 缺凭证 ${inte.unavailable||0}）`)}
+  <div class="pm-meta" style="margin-bottom:8px">以下为待接入的真实渠道与资金记账骨架；缺凭证即「缺凭证」，填齐仅代表可发起真实连通测试，系统不伪造连接成功。</div>
+  ${adapters.length?`<div style="display:flex;flex-direction:column;gap:8px">${adapters.map(a=>`<div style="border:1px solid rgba(255,150,205,.18);border-radius:10px;padding:10px 12px;background:rgba(255,150,205,.04)"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-weight:600">${esc(a.label)} <span class="pm-meta">${esc(a.category)} · ${esc(a.key)}</span></div><span class="pm-chip ${a.configured?"ok":"warn"}">${a.configured?"可连通测试":"缺凭证"}</span></div>${a.missing&&a.missing.length?`<div class="pm-meta" style="margin-top:4px">待补凭证位：${a.missing.map(m=>esc(m.env)).join("、")}</div>`:`<div class="pm-meta" style="margin-top:4px">必填凭证已填齐，待真实 ping（不代表已连通）。</div>`}<details style="margin-top:6px"><summary class="pm-meta" style="cursor:pointer">待实现真实方法（${(a.methods||[]).length}）</summary><ul class="pm-meta" style="margin:6px 0 0 18px;padding:0">${(a.methods||[]).map(m=>`<li style="margin:2px 0">${esc(m)}</li>`).join("")}</ul></details></div>`).join("")}</div>`:`<div class="pm-meta">暂无联调适配登记。</div>`}
+  ${secHead("登记 / 更新通用 HTTP 渠道（密钥只加密落库、永不回显）")}
+  <div class="pm-toolbar"><input class="pm-input" id="ccType" placeholder="渠道标识，如 logistics / ecommerce / custom" style="width:220px"><input class="pm-input" id="ccName" placeholder="显示名（可留空）" style="width:160px"></div>
+  <div class="pm-toolbar"><input class="pm-input" id="ccUrl" placeholder="https://接口地址" style="flex:1"><select id="ccMethod" class="pm-input" style="width:110px"><option>GET</option><option>POST</option></select></div>
+  <div class="pm-toolbar"><input class="pm-input" id="ccToken" type="password" placeholder="访问令牌 / API Token（加密保管，留空则不改动）" style="flex:1"><button class="pm-btn" onclick="saveConnector()">保存渠道</button></div>
+  <div class="pm-meta">令牌只 Fernet 加密落库、永不回显；签名渠道（淘宝 / 抖店 / 顺丰）、Basic 鉴权、动作映射在完整工作台配置。</div>
+  ${secHead(`自定义函数（${fns.length}）`)}
+  ${fns.length?`<table class="pm-table"><thead><tr><th>函数</th><th>类型</th><th>风险</th><th>副作用</th><th>操作</th></tr></thead><tbody>${fns.map(f=>`<tr><td><div style="font-weight:600">${esc(f.name)}</div><div class="pm-meta">${esc(f.description||"")}</div></td><td><span class="pm-chip info">${esc(f.kind||"")}</span></td><td>${rchip(f.effective_risk||f.risk_level)}</td><td class="pm-meta">${f.side_effect?"写操作":"只读"}</td><td style="text-align:right;white-space:nowrap"><button class="pm-btn sm ${f.enabled?"ghost":""}" onclick="toggleFunction('${f.id}',${f.enabled})">${f.enabled?"停用":"启用"}</button> <button class="pm-btn sm danger" onclick="deleteFunction('${f.id}')">删除</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无自定义函数。可在完整工作台注册 HTTP 函数并纳入网关。</div>`}
+  ${secHead(`内置工具 / MCP 目录（${tools.length}）`)}
+  <div class="pm-meta" style="margin-bottom:8px">所有工具统一经网关鉴权与审批，密钥不下发到前端，MCP JSON-RPC 走同一目录。</div>
+  ${tools.length?`<table class="pm-table"><thead><tr><th>工具</th><th>风险</th><th>副作用</th><th>来源</th></tr></thead><tbody>${tools.map(t=>`<tr><td><div style="font-weight:600">${esc(t.name)}</div><div class="pm-meta">${esc(t.description||"")}</div></td><td>${rchip(t.risk_level)}</td><td class="pm-meta">${t.side_effect?"写操作":"只读"}</td><td class="pm-meta">${esc(t.source||"builtin")}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-empty"><p>工具目录为空。</p></div>`}`;
+}
+
+async function toggleJob(id,enabled){
+  try{await jsend("PATCH",`/workspaces/${state.workspaceId}/jobs/${id}`,{enabled:!enabled});toast(enabled?"已停用":"已启用");loadSystemPanel();}catch(e){toast(e.message);}
+}
+async function deleteJob(id){
+  if(!confirm("确认删除该定时任务？"))return;
+  try{await jsend("DELETE",`/workspaces/${state.workspaceId}/jobs/${id}`);toast("已删除");loadSystemPanel();}catch(e){toast(e.message);}
+}
+async function toggleFunction(id,enabled){
+  try{await jsend("PATCH",`/workspaces/${state.workspaceId}/functions/${id}`,{enabled:!enabled});toast(enabled?"已停用":"已启用");loadConnectPanel();}catch(e){toast(e.message);}
+}
+async function deleteFunction(id){
+  if(!confirm("确认删除该自定义函数？"))return;
+  try{await jsend("DELETE",`/workspaces/${state.workspaceId}/functions/${id}`);toast("已删除");loadConnectPanel();}catch(e){toast(e.message);}
+}
+async function saveConnector(){
+  const type=$("#ccType").value.trim();if(!type){toast("先填渠道标识（如 logistics）");return;}
+  const body={method:$("#ccMethod").value};
+  const nm=$("#ccName").value.trim();if(nm)body.name=nm;
+  const url=$("#ccUrl").value.trim();if(url)body.endpoint_url=url;
+  const tok=$("#ccToken").value.trim();if(tok){body.access_token=tok;body.auth={type:"bearer"};}
+  try{await jsend("PUT",`/workspaces/${state.workspaceId}/connectors/${encodeURIComponent(type)}`,body);toast("渠道已保存，密钥加密不回显");loadConnectPanel();}catch(e){toast(e.message);}
+}
+
+async function loadContentPanel(){
+  const body=$("#pmBody");
+  body.innerHTML=`${secHead("创作中心：主脑生成 + 存草稿")}
+  <div class="pm-toolbar"><input class="pm-input" id="ctTopic" placeholder="写主题，如：新款秋季卫衣上市 / 店铺开业促销" style="flex:1;min-width:240px"><button class="pm-btn" onclick="generateCopy()">✨ AI 生成文案</button></div>
+  <div class="pm-toolbar"><input class="pm-input" id="ctName" placeholder="草稿标题，如：新品上市文案" style="flex:1;min-width:220px"></div>
+  <textarea id="ctText" class="pm-input" style="width:100%;height:200px;resize:vertical;padding:12px" placeholder="主题填好后点 AI 生成，结果自动填入；也可自己改写后保存到文件库。"></textarea>
+  <div class="pm-toolbar" style="margin-top:12px"><button class="pm-btn" onclick="saveDraft()">保存草稿到文件库</button><button class="pm-btn ghost" onclick="refreshFileList()">↻ 刷新文件库</button><span class="pm-meta">多平台排版/定时发布在完整工作台完成。</span></div>
+  ${secHead("文件库（点击回读）")}
+  <div id="ctList"></div>`;
+  refreshFileList();
+}
+async function refreshFileList(){
+  const box=$("#ctList");if(!box)return;
+  const d=await sjget(`/workspaces/${state.workspaceId}/files`);
+  const rows=(d&&d.files)||[];
+  box.innerHTML=rows.length?`<table class="pm-table"><thead><tr><th>文件名</th><th>大小</th><th>操作</th></tr></thead><tbody>${rows.map(f=>`<tr><td style="font-weight:600">${esc(f.file_name)}</td><td class="pm-meta">${(f.size/1024).toFixed(1)} KB</td><td style="text-align:right"><button class="pm-btn sm" onclick="loadDraft('${esc(f.file_name)}')">回读</button></td></tr>`).join("")}</tbody></table>`:`<div class="pm-empty"><p>文件库为空，先保存一份草稿。</p></div>`;
+}
+async function loadDraft(name){
+  const d=await sjget(`/workspaces/${state.workspaceId}/files/${encodeURIComponent(name)}`);
+  if(!d||d.error||d.kind!=="text"){toast("无法回读该文件");return;}
+  $("#ctText").value=d.content||"";
+  $("#ctName").value=name.replace(/^draft-/,"").replace(/\.(txt|md)$/i,"");
+  toast("已载入草稿："+name);
+}
+async function generateCopy(){
+  const prompt=$("#ctTopic").value.trim();if(!prompt){toast("先写一个主题");return;}
+  const r=await gwExec("generate_marketing_draft",{prompt,context:""});
+  if(r&&r.decision==="ALLOWED"&&r.result&&r.result.draft){$("#ctText").value=r.result.draft;toast("已生成，可改写后保存");}
+}
+async function saveDraft(){
+  const name=$("#ctName").value.trim()||("草稿-"+Date.now());
+  const text=$("#ctText").value;if(!text){toast("先写一点内容");return;}
+  const b64=btoa(unescape(encodeURIComponent(text)));
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/files`,{name:"draft-"+name,content_base64:b64});toast("草稿已保存");refreshFileList();}catch(e){toast(e.message);}
+}
+
+async function loadMerchantPanel(){
+  const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>读取渠道与市场…</p></div>`;
+  const [co,mk,d]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/connectors`),sjget(`/marketplace`),sjget(`/workspaces/${state.workspaceId}/dashboard`)]);
+  const conns=(co&&co.connectors)||[];const mods=(mk&&mk.modules)||(mk&&mk.marketplace)||[];
+  const m=(d&&d.merchant)||{};
+  body.innerHTML=`${secHead("我的商家")}
+  <table class="pm-table"><tbody>
+  <tr><td>店铺名</td><td style="text-align:right">${esc(m.shop_name||"未设置")}</td></tr>
+  <tr><td>类目 / 地区</td><td style="text-align:right">${esc(m.category||"—")} · ${esc(m.region||"—")}</td></tr></tbody></table>
+  ${secHead("已接渠道（连接器）")}
+  ${conns.length?`<table class="pm-table"><thead><tr><th>渠道</th><th>类型</th><th>配置</th></tr></thead><tbody>${conns.map(c=>`<tr><td>${esc(c.name)}</td><td class="pm-meta">${esc(c.connector_type)}</td><td><span class="pm-chip ${c.configured?"ok":"warn"}">${c.configured?"已配置":"待配置"}</span></td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">暂无连接器，物流/电商/外卖 API 在完整工作台接入。</div>`}
+  ${secHead("应用市场")}
+  ${mods.length?`<table class="pm-table"><tbody>${mods.map(x=>`<tr><td>${esc(x.name||x.id)}</td><td class="pm-meta" style="text-align:right">${esc(x.description||"")}</td></tr>`).join("")}</tbody></table>`:`<div class="pm-meta">市场暂无可用模块。</div>`}`;
+}
+
+// data load
+async function loadData(){
+  if(!state.apiKey||!state.workspaceId){$("#gate").classList.add("show");return;}
+  $("#gate").classList.remove("show");$("#wsState").textContent="真实工作区 · 已连接";
+  try{
+    const d=await jget(`/workspaces/${state.workspaceId}/dashboard`);
+    const k=d.kpis||{};
+    const [ag,bev,st]=await Promise.all([sjget(`/workspaces/${state.workspaceId}/agents`),sjget(`/workspaces/${state.workspaceId}/brain/events?limit=5`),sjget(`/workspaces/${state.workspaceId}/settings`)]);
+    let integ={total:0,ready_to_probe:0,unavailable:0,adapters:[]};
+    try{integ=await sjget(`/workspaces/${state.workspaceId}/integrations/status`);}catch(e){}
+    const agentN=(ag&&ag.agents)?ag.agents.length:0;
+    const cfgOn=o=>!!(o&&(o.api_key_enc||o.api_key||o.password||o.password_enc||o.host||o.model));
+    const modelOn=!!(d.protection&&d.protection.model_configured)||cfgOn(st&&st.model);
+    const karmaOn=cfgOn(st&&st.karma);
+    const smtpOn=cfgOn(st&&st.smtp);
+    $("#kpi-products").textContent=(k.published??k.products??0)+" 件";
+    $("#kpi-orders").textContent=(k.orders??0)+" 单";
+    $("#kpi-customers").textContent=k.customers??0;
+    $("#kpi-tasks").textContent=((d.todos?.must_confirm||0)+(d.todos?.needs_reply||0)+(d.todos?.info||0))+" 待办";
+    $("#kpi-approvals").textContent=k.pending_approvals??0+" 待审";
+    $("#kpi-agents").textContent=agentN+" 经理人";
+    // live tasks = pending todos
+    const pt=d.pending_todos||[];
+    $("#liveTasks").innerHTML=pt.length?pt.slice(0,4).map(t=>`<button class="live-task"><span class="task-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/></svg></span><div><strong>${esc(t.title||"任务")}</strong><small>${esc(t.kind||"待办")}</small></div><span class="tag green">待处理</span></button>`).join(""):`<div class="mini-empty"><p>工作区还没有待办任务</p></div>`;
+    // system rows
+    const integReady=integ.ready_to_probe||0,integTotal=integ.total||0;
+    const rows=[["工作区数据库","已同步",true],["规则执行引擎","待命",true],["AI 模型服务",modelOn?"已配置":"未连接",modelOn],["Karma 结算",karmaOn?"已配置":"未连接",karmaOn],["邮件通知",smtpOn?"已配置":"未连接",smtpOn],["外部联调",integReady>0?`${integReady}/${integTotal} 可连通测试`:`${integTotal} 项待凭证`,integReady>0]];
+    $("#systemRows").innerHTML=rows.map(([n,s,on])=>`<button class="system-row"><svg class="${on?"good":"muted"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="m9 12 2 2 4-4"/></svg><span>${n}</span><b class="tag ${on?"green":""}">${s}</b></button>`).join("");
+    // plan = pending todos today (best effort)
+    $("#planList").innerHTML=pt.length?pt.slice(0,4).map(t=>`<button class="plan-row"><i></i><time>待办</time><span>${esc(t.title||"")}</span><b class="tag green">待处理</b></button>`).join(""):`<div class="mini-empty"><p>今天还没有计划</p></div>`;
+    // 主脑最近操作（真实审计事件流）
+    const evs=(bev&&bev.events)||[];
+    $("#recentList").innerHTML=evs.length?evs.map(e=>{
+      const col=e.decision==="ALLOWED"?"#4ee7be":e.decision==="DENIED"?"#ff9aa8":e.decision==="PENDING"?"#ffc86b":"#f0a8ff";
+      return `<button class="recent"><svg viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><span>${esc(e.action)}</span><small>${fmtTime(e.created_at)}</small></button>`;
+    }).join(""):`<p class="mini-empty" style="height:auto">保存或执行后，操作记录将显示在这里。</p>`;
+    // 主脑状态 + 通知红点（待审批 + 待确认）
+    const mc=(d.todos&&d.todos.must_confirm)||0;
+    const pendA=k.pending_approvals||0;
+    const pendingAll=mc+pendA+((d.todos&&d.todos.needs_reply)||0)+((d.todos&&d.todos.info)||0);
+    $("#brainStep").textContent=pendingAll?`待处理 ${pendingAll} 项 · 主脑待命`:"核心待命 · 全部完成";
+    $("#brainPct").textContent=pendingAll?"处理中":"100%";
+    $("#brainBar").style.width=pendingAll?"46%":"100%";
+    const nd=$("#notifDot");if(nd)nd.style.display=(pendA+mc)>0?"block":"none";
+  }catch(e){$("#wsState").textContent="连接失败 · "+e.message;}
+}
+function working(){return false;}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+// 全局快捷键：Ctrl/Cmd+K 搜索，Esc 关闭浮层，搜索框回车走命令路由
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openSearch();}
+  else if(e.key==="Escape"){closeSearch();closePanel();}
+});
+$("#searchInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){const v=$("#searchInput").value.trim();if(v){closeSearch();routeCommand(v);}}
+});
+loadData();setInterval(loadData,8000);
+</script>
+</body>
+</html>

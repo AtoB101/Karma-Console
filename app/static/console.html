@@ -1,0 +1,2295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Krama 控制台</title>
+<style>
+:root{
+  --bg:#050b1e; --panel:#0c1628; --panel2:#11213a; --line:rgba(56,224,255,.16);
+  --text:#eaf2ff; --muted:#8fa6c4; --accent:#2f9bff; --accent2:#38e0ff;
+  --ok:#33d69f; --warn:#f5a623; --danger:#f87171; --info:#38e0ff;
+  --user-bubble:#13243d; --assistant-bubble:#0e1c30;
+  --glow:0 0 18px rgba(56,224,255,.18);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+.logo{font-weight:700;font-size:16px;letter-spacing:.5px}
+.logo span{color:var(--accent2)}
+.hidden{display:none!important}
+button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px}
+button:hover{background:var(--accent2)}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+button.danger{background:transparent;border:1px solid var(--danger);color:var(--danger)}
+button.small{padding:4px 9px;font-size:12px}
+button.icon{padding:2px 7px;font-size:12px;background:transparent;border:1px solid var(--line);color:var(--muted)}
+main{display:grid;grid-template-columns:260px 1fr 300px;height:calc(100vh - 57px)}
+aside{background:var(--panel);overflow:auto;padding:14px}
+#left{border-right:1px solid var(--line)}
+#right{border-left:1px solid var(--line)}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 10px}
+.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;background:var(--line);color:var(--muted);white-space:nowrap}
+.badge.r0{background:#12302a;color:var(--ok)} .badge.r1{background:#123c34;color:var(--ok)}
+.badge.r2{background:#3a2f12;color:var(--warn)} .badge.r3{background:#3a1f1f;color:var(--danger)}
+.badge.kind{background:#1c2340;color:var(--info)}
+.badge.area{background:#241d3f;color:var(--accent2)}
+.overview{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px}
+.ov-title{font-size:12px;font-weight:700;margin-bottom:10px}
+.ov-chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 9px;font-size:11px;color:var(--muted)}
+.chip b{color:var(--text);font-weight:700}
+
+/* chat */
+#center{display:flex;flex-direction:column;height:100%;overflow:hidden}
+#chat{display:flex;flex-direction:column;flex:1;min-height:0;background:var(--bg)}
+#msgs{flex:1;overflow:auto;padding:24px 0}
+.msg{max-width:780px;margin:0 auto 18px;padding:0 24px;display:flex;flex-direction:column}
+.msg.user{align-items:flex-end}
+.msg.assistant{align-items:flex-start}
+.msg .who{font-size:12px;color:var(--muted);margin-bottom:4px}
+.msg .bubble{max-width:88%;padding:10px 14px;border-radius:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.msg.user .bubble{background:var(--user-bubble);border:1px solid var(--line);border-bottom-right-radius:4px}
+.msg.assistant .bubble{background:var(--assistant-bubble);border:1px solid var(--line);border-bottom-left-radius:4px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+.card .t{font-weight:600;margin-bottom:6px}
+.card li{margin:2px 0;color:var(--muted)}
+#composer{max-width:780px;margin:0 auto;padding:0 24px 22px;width:100%}
+#composer .box{display:flex;gap:10px;align-items:flex-end;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px}
+textarea,input,select{background:#0d0f14;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;resize:none}
+textarea{flex:1;border:0;background:transparent;resize:none;outline:none}
+#send{flex-shrink:0}
+
+/* left areas */
+details{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--panel2)}
+details summary{cursor:pointer;padding:9px 11px;font-size:13px;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+details summary::-webkit-details-marker{display:none}
+details summary .caret{transition:.15s;color:var(--muted)}
+details[open] summary .caret{transform:rotate(90deg)}
+.area-row{display:flex;align-items:center;gap:8px;padding:7px 10px 7px 24px;border-top:1px solid var(--line);font-size:13px}
+.area-row .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.area-row .sub{padding-left:44px}
+.prod{font-size:11px;color:var(--muted);padding:2px 10px 2px 24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);margin-bottom:6px}
+.lib-item .grow{flex:1;min-width:0}
+.lib-item .t{font-size:12px;font-weight:600}
+.lib-item .d{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.approval{background:var(--panel2);border:1px solid #3a2f12;border-radius:10px;padding:10px;margin-bottom:8px}
+.todo{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.todo.must_confirm{border-color:#3a2f12}
+.todo.needs_reply{border-color:#123c34}
+.todo.info{border-color:#1c2340}
+.todo .kindtag{font-size:10px;padding:2px 6px;border-radius:12px;background:var(--line);color:var(--muted);margin-right:6px}
+.todo .code{font-family:Consolas,monospace;letter-spacing:2px;font-weight:700}
+.field{margin-bottom:10px} label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.row{display:flex;gap:10px} .row>*{flex:1}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:520px;max-height:90vh;overflow:auto}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;z-index:99}
+#setup{min-height:calc(100vh - 57px);display:flex;align-items:center;justify-content:center;padding:24px}
+.firstrun{width:400px;max-width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px 30px;text-align:left;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.fr-logo{font-size:24px;font-weight:700;letter-spacing:.5px;margin-bottom:6px}
+.fr-logo span{color:var(--accent2)}
+.fr-sub{color:var(--muted);font-size:13px;margin:0 0 22px}
+.firstrun .field{margin-bottom:14px}
+.firstrun input{width:100%}
+.firstrun button{margin-top:6px}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+.tabbar{display:flex;gap:8px;padding:10px 18px 0}
+.tab{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+#biz{flex:1;overflow:auto;padding:16px 18px}
+.biz-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.bizcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.biz-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--panel2)}
+.biz-row .grow{flex:1;min-width:0}
+.biz-t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.biz-d{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.biz-actions{display:flex;gap:8px;margin-top:10px}
+.biz-actions input{flex:1;min-width:0}
+.biz-actions select{flex:1;min-width:0}
+@media(max-width:1100px){.biz-grid{grid-template-columns:1fr}}
+/* ---- neural console ---- */
+#neural{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;background:radial-gradient(1200px 700px at 50% 45%,#151a2b 0%,#0c0e15 60%,#080a10 100%)}
+#neural.open{display:flex}
+#neuralTop{display:flex;align-items:center;gap:12px;padding:12px 18px;background:rgba(21,24,35,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+#neuralTop .nt-title{font-weight:700;letter-spacing:.4px}
+#neuralTop .nt-sub{font-size:11.5px;color:var(--muted)}
+#neuralStage{position:relative;flex:1;overflow:hidden;background-image:radial-gradient(rgba(47,155,255,.14) 1px,transparent 1px);background-size:26px 26px}
+#neuralSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#brainNode{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:232px;max-height:52vh;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(47,155,255,.18),rgba(28,32,48,.96));border:1px solid rgba(47,155,255,.55);border-radius:18px;box-shadow:0 0 40px rgba(47,155,255,.35),inset 0 0 24px rgba(47,155,255,.08);padding:12px 13px;overflow:hidden}
+#brainNode .bn-head{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.3px;margin-bottom:8px}
+#brainNode .bn-pulse{width:10px;height:10px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 0 rgba(56,224,255,.7);animation:bnPulse 1.8s ease-out infinite}
+#brainNode .bn-feed{flex:1;overflow:auto;font-size:11.5px;display:flex;flex-direction:column;gap:5px}
+#brainNode .bn-hints{margin-top:8px;border-top:1px solid var(--line);padding-top:7px;font-size:11.5px;display:flex;flex-direction:column;gap:5px}
+.nev{display:flex;gap:7px;align-items:baseline;padding:4px 7px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+.nev .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;align-self:center}
+.nev.ALLOWED .dot{background:var(--ok)}
+.nev.APPROVED .dot{background:var(--info)}
+.nev.PENDING .dot{background:var(--warn)}
+.nev.DENIED .dot{background:var(--danger)}
+.nev .a{color:var(--text);font-weight:600}
+.nev .r{color:var(--muted)}
+.nhint{display:flex;gap:7px;padding:4px 7px;border-radius:8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);font-size:11px;color:var(--text)}
+.nhint.danger{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.45)}
+.nhint .ic{flex:0 0 auto}
+.npanel{position:absolute;width:248px;min-height:126px;background:linear-gradient(180deg,rgba(28,32,48,.96),rgba(21,24,35,.98));border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden}
+.npanel.active{border-color:rgba(47,155,255,.65);box-shadow:0 14px 40px rgba(0,0,0,.5),0 0 22px rgba(47,155,255,.25)}
+.npanel .np-head{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:grab;border-bottom:1px solid var(--line);font-weight:600;font-size:13px;user-select:none}
+.npanel .np-head:active{cursor:grabbing}
+.npanel .np-head .np-ic{font-size:15px}
+.npanel .np-head .np-count{margin-left:auto;font-size:11px;color:var(--accent2);font-weight:700}
+.npanel .np-body{padding:9px 12px;font-size:11.5px;color:var(--muted);overflow:auto;flex:1;max-height:200px}
+.npanel .np-body .row{display:flex;gap:6px;justify-content:space-between;padding:2px 0;border-bottom:1px dashed rgba(38,43,61,.6)}
+.npanel .np-body .row b{color:var(--text);font-weight:600}
+.npanel .np-body .nptbl{width:100%;border-collapse:collapse;font-size:10.5px}
+.npanel .np-body .nptbl th,.npanel .np-body .nptbl td{padding:3px 4px;text-align:left;border-bottom:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px}
+.npanel .np-body .metric{font-size:22px;font-weight:800;color:var(--text)}
+.npanel .np-body .metric-cap{font-size:10px;color:var(--faint)}
+.npanel .np-body .bars{display:flex;align-items:flex-end;gap:4px;height:70px;padding-top:4px}
+.npanel .np-body .bar{flex:1;min-width:6px;background:linear-gradient(180deg,#2f9bff,#38e0ff);border-radius:4px 4px 0 0}
+.npanel .np-body .pie{width:64px;height:64px;border-radius:50%;margin:4px auto}
+.npanel .np-body .pie-cap{text-align:center;font-size:10px;color:var(--faint)}
+.npanel .np-body .npsearch{width:100%;background:var(--elev);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:5px 8px;font-size:11px}
+.nline{fill:none;stroke:rgba(47,155,255,.5);stroke-width:1.4;stroke-dasharray:4 6;animation:nFlow 1.1s linear infinite}
+.nline.danger{stroke:rgba(248,113,113,.75)}
+@keyframes nFlow{to{stroke-dashoffset:-20}}
+@keyframes bnPulse{0%{box-shadow:0 0 0 0 rgba(56,224,255,.6)}70%{box-shadow:0 0 0 10px rgba(56,224,255,0)}100%{box-shadow:0 0 0 0 rgba(56,224,255,0)}}</style>
+<style id="krama-ui">
+/* ============ Krama commercial console design system ============ */
+:root{
+  --bg:#050b1e;
+  --bg-glow:radial-gradient(1100px 520px at 18% -8%,rgba(47,155,255,.18),transparent 55%),radial-gradient(900px 480px at 88% -12%,rgba(56,224,255,.12),transparent 55%);
+  --panel:#0c1628;
+  --panel2:#11213a;
+  --elev:#16294a;
+  --line:rgba(56,224,255,.15);
+  --line-soft:rgba(56,224,255,.08);
+  --text:#eaf2ff;
+  --muted:#8fa6c4;
+  --faint:#5f7491;
+  --accent:#2f9bff;
+  --accent2:#38e0ff;
+  --cyan:#38e0ff;
+  --grad:linear-gradient(135deg,#1f8fff 0%,#38e0ff 100%);
+  --ok:#33d69f; --warn:#f5a623; --danger:#f87171; --info:#38e0ff;
+  --user-bubble:#13243d; --assistant-bubble:#0e1c30;
+  --radius:14px;
+  --shadow:0 10px 30px rgba(0,0,0,.4);
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.6 "Inter","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow:hidden;
+}
+body::before{content:"";position:fixed;inset:0;background:var(--bg-glow);pointer-events:none;z-index:0}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#252c40;border-radius:9px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#333b54;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+.hidden{display:none!important}
+
+/* ---------- header ---------- */
+header{
+  position:relative;z-index:10;display:flex;align-items:center;gap:14px;
+  height:62px;padding:0 20px;background:rgba(13,16,25,.82);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-soft);
+}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .mark{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;font-weight:800;color:#fff;font-size:15px;box-shadow:0 6px 18px rgba(47,155,255,.35)}
+.brand .name{font-weight:700;font-size:16px;letter-spacing:.4px}
+.brand .name em{font-style:normal;color:var(--cyan)}
+.brand .sub{font-size:11px;color:var(--faint);letter-spacing:.3px;margin-top:-2px}
+#wsName{display:inline-flex;align-items:center;gap:8px;margin-left:6px;padding:5px 12px;border:1px solid var(--line);border-radius:20px;background:var(--panel2);color:var(--muted);font-size:12.5px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#wsName::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.18);flex:0 0 auto}
+header .spacer{flex:1}
+.hdr-actions{display:flex;align-items:center;gap:8px}
+
+/* ---------- buttons ---------- */
+button{
+  background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 15px;
+  cursor:pointer;font-size:13px;font-weight:600;letter-spacing:.2px;transition:.16s;
+}
+button:hover{background:var(--accent2);transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+button.primary{background:var(--grad);box-shadow:0 6px 16px rgba(47,155,255,.3)}
+button.primary:hover{box-shadow:0 8px 22px rgba(47,155,255,.42);background:var(--grad)}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);font-weight:500}
+button.ghost:hover{background:var(--elev);border-color:#323a52;color:var(--text)}
+button.danger{background:transparent;border:1px solid rgba(248,113,113,.4);color:var(--danger)}
+button.danger:hover{background:rgba(248,113,113,.12);border-color:var(--danger)}
+button.small{padding:5px 10px;font-size:12px;border-radius:7px}
+button.tiny{padding:3px 8px;font-size:11px;border-radius:6px}
+button.icon{width:30px;height:30px;padding:0;display:inline-grid;place-items:center;background:transparent;border:1px solid var(--line);color:var(--muted)}
+
+/* ---------- layout ---------- */
+main{position:relative;z-index:1;display:grid;grid-template-columns:292px minmax(0,1fr) 344px;height:calc(100vh - 62px)}
+aside{background:var(--panel);overflow:auto;padding:18px 16px 28px}
+aside#left{border-right:1px solid var(--line-soft)}
+aside#right{border-left:1px solid var(--line-soft);background:linear-gradient(180deg,#0f121b,#0c0f17)}
+
+/* ---------- section labels ---------- */
+h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:var(--faint);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+h2::after{content:"";height:1px;flex:1;background:var(--line-soft)}
+h2 .count{margin-left:auto;background:var(--elev);border:1px solid var(--line);color:var(--muted);padding:1px 8px;border-radius:10px;font-size:10px;letter-spacing:0}
+h3{font-size:13px;font-weight:700;margin:0 0 8px;color:var(--text)}
+
+/* ---------- badges / chips ---------- */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--elev);border:1px solid var(--line);color:var(--muted);white-space:nowrap;letter-spacing:.3px}
+.badge.r0{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.28);color:var(--ok)}
+.badge.r1{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.28);color:var(--info)}
+.badge.r2{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:var(--warn)}
+.badge.r3{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.3);color:var(--danger)}
+.badge.kind{background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.22);color:var(--cyan)}
+.badge.area{background:rgba(47,155,255,.1);border-color:rgba(47,155,255,.3);color:var(--accent2)}
+.badge.stage{font-weight:600}
+
+/* overview / metrics */
+.overview{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:18px;box-shadow:var(--shadow)}
+.ov-title{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--faint);text-transform:uppercase;margin-bottom:11px}
+.ov-chips{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.chip{display:flex;flex-direction:column;gap:1px;background:var(--elev);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--muted)}
+.chip b{color:var(--text);font-weight:700;font-size:16px;line-height:1.2}
+.chip small{font-size:9.5px;color:var(--faint);letter-spacing:.4px;text-transform:uppercase}
+.chip.alert{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.07)}
+.chip.attention{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.07)}
+.chip.okay{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.07)}
+.chip.info{border-color:rgba(56,189,248,.3);background:rgba(56,189,248,.07)}
+
+/* ---------- left: function areas ---------- */
+details{border:1px solid var(--line);border-radius:11px;margin-bottom:9px;background:var(--panel2);overflow:hidden;transition:.16s}
+details:hover{border-color:#2d3650}
+details[open]{border-color:#2d3650}
+details summary{cursor:pointer;padding:10px 12px;font-size:13px;font-weight:600;list-style:none;display:flex;align-items:center;gap:9px;background:linear-gradient(180deg,var(--elev),transparent)}
+details summary::-webkit-details-marker{display:none}
+details summary .caret{transition:.16s;color:var(--faint);font-size:10px}
+details[open] summary .caret{transform:rotate(90deg);color:var(--accent2)}
+.area-row{display:flex;align-items:center;gap:9px;padding:8px 11px 8px 26px;border-top:1px solid var(--line-soft);font-size:12.5px;color:var(--muted)}
+.area-row:hover{background:rgba(47,155,255,.05)}
+.area-row .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.prod{font-size:11px;color:var(--faint);padding:3px 10px 3px 26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prod::before{content:"• ";color:var(--accent2)}
+.side-actions{display:flex;flex-direction:column;gap:7px;margin-top:12px}
+.side-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+
+/* library */
+#libDetails summary{font-size:12.5px}
+.lib-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);margin-bottom:7px;cursor:pointer;transition:.14s}
+.lib-item:hover{border-color:var(--accent);background:rgba(47,155,255,.08)}
+.lib-item .grow{flex:1;min-width:0}
+.lib-item .t{font-size:12px;font-weight:600;color:var(--text)}
+.lib-item .d{font-size:10.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+
+/* ---------- center: chat ---------- */
+#center{display:flex;flex-direction:column;height:100%;overflow:hidden;background:transparent}
+.tabbar{display:flex;gap:6px;padding:12px 18px 0;align-items:center}
+.tab{background:transparent;border:1px solid transparent;color:var(--muted);font-weight:600;padding:8px 16px;border-radius:9px}
+.tab:hover{background:var(--panel2);color:var(--text)}
+.tab.active{background:linear-gradient(180deg,var(--elev),var(--panel2));border-color:var(--line);color:var(--text);box-shadow:var(--shadow)}
+#chat{display:flex;flex-direction:column;flex:1;min-height:0}
+#msgs{flex:1;overflow:auto;padding:26px 0;scroll-behavior:smooth}
+.msg{max-width:820px;margin:0 auto 20px;padding:0 26px;display:flex;flex-direction:column}
+.msg.user{align-items:flex-end}
+.msg.assistant{align-items:flex-start}
+.msg .who{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--faint);letter-spacing:.4px;margin-bottom:7px;text-transform:uppercase}
+.msg.assistant .who::before{content:"K";width:20px;height:20px;border-radius:6px;background:var(--grad);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800}
+.msg .bubble{max-width:88%;padding:12px 16px;border-radius:15px;line-height:1.68;white-space:pre-wrap;word-break:break-word;font-size:14px;box-shadow:var(--shadow)}
+.msg.user .bubble{background:linear-gradient(180deg,var(--user-bubble),#1a2032);border:1px solid #2a3148;border-bottom-right-radius:5px}
+.msg.assistant .bubble{background:linear-gradient(180deg,var(--assistant-bubble),#101521);border:1px solid var(--line-soft);border-bottom-left-radius:5px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-top:10px}
+.card .t{font-weight:700;margin-bottom:6px;color:var(--text);font-size:12.5px}
+.card li{margin:3px 0;color:var(--muted);font-size:13px}
+#composer{max-width:820px;margin:0 auto;padding:6px 26px 24px;width:100%}
+#composer .box{display:flex;gap:10px;align-items:flex-end;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:10px 10px 10px 16px;box-shadow:var(--shadow);transition:.16s}
+#composer .box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,155,255,.15),var(--shadow)}
+textarea,input,select{background:#0b0e16;border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 11px;font-size:13px;transition:.14s;font-family:inherit}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,155,255,.14)}
+textarea{flex:1;border:0;background:transparent;resize:none;outline:none;box-shadow:none;padding:4px 0}
+#send{flex-shrink:0;padding:9px 20px}
+
+/* ---------- right: todos & approvals ---------- */
+.todo,.approval{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px;transition:.14s}
+.todo:hover,.approval:hover{border-color:#2d3650}
+.todo.must_confirm{border-color:rgba(248,113,113,.35);background:linear-gradient(180deg,rgba(248,113,113,.07),var(--panel))}
+.todo.needs_reply{border-color:rgba(52,211,153,.3)}
+.todo.info{border-color:rgba(56,189,248,.25)}
+.todo .kindtag,.approval .kindtag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:11px;background:var(--elev);border:1px solid var(--line);color:var(--muted);margin-right:6px;letter-spacing:.4px}
+.todo.must_confirm .kindtag{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3);color:var(--danger)}
+.todo.needs_reply .kindtag{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3);color:var(--ok)}
+.todo.info .kindtag{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3);color:var(--cyan)}
+.todo .title,.approval .title{font-weight:700;font-size:13px;color:var(--text);line-height:1.4}
+.todo .meta,.approval .meta{font-size:11px;color:var(--faint);margin:4px 0 8px;word-break:break-all;line-height:1.5}
+.todo .code{font-family:var(--mono);letter-spacing:3px;font-weight:700;color:var(--accent2);background:rgba(47,155,255,.1);border:1px solid rgba(47,155,255,.3);border-radius:7px;padding:2px 8px;display:inline-block}
+.todo-actions{display:flex;gap:7px;margin-top:8px;align-items:center}
+.todo-actions input{flex:1;min-width:0;font-family:var(--mono);letter-spacing:2px}
+.btn-row{display:flex;gap:7px;margin-top:8px}
+.divider{height:1px;background:var(--line-soft);margin:18px 0 14px}
+
+/* ---------- forms ---------- */
+.field{margin-bottom:12px}
+label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:5px;letter-spacing:.2px}
+label small{color:var(--faint);font-weight:400;margin-left:6px}
+.row{display:flex;gap:12px} .row>*{flex:1}
+input[type=number]{-moz-appearance:textfield}
+
+/* ---------- modals ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(5,7,12,.66);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:50;padding:22px}
+.modal{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:24px;width:560px;max-width:100%;max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.55);animation:pop .18s ease}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.modal h2{margin-bottom:18px;font-size:15px}
+.modal .row{align-items:flex-end}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--grad);color:#fff;padding:11px 18px;border-radius:11px;z-index:99;font-weight:600;font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.4);animation:pop .2s ease}
+
+/* ---------- first run ---------- */
+#setup{position:relative;z-index:1;min-height:calc(100vh - 62px);display:flex;align-items:center;justify-content:center;padding:26px}
+.firstrun{width:440px;max-width:100%;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:20px;padding:36px 34px;text-align:left;box-shadow:0 40px 100px rgba(0,0,0,.55)}
+.fr-logo{font-size:26px;font-weight:800;letter-spacing:.4px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.fr-logo .mark{width:42px;height:42px;border-radius:12px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:19px;box-shadow:0 8px 24px rgba(47,155,255,.4)}
+.fr-logo em{font-style:normal;color:var(--cyan)}
+.fr-sub{color:var(--muted);font-size:13.5px;margin:0 0 24px;line-height:1.7}
+.fr-features{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 24px;padding:0;list-style:none}
+.fr-features li{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);background:var(--elev);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.fr-features li::before{content:"✓";color:var(--ok);font-weight:800}
+.firstrun .field{margin-bottom:15px}
+.firstrun input{width:100%;padding:11px 12px;border-radius:10px}
+.firstrun button{margin-top:8px;width:100%;padding:12px}
+
+/* ---------- biz dashboard ---------- */
+#biz{flex:1;overflow:auto;padding:18px 20px 30px}
+.biz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.bizcard{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.bizcard h2{margin-bottom:14px}
+.biz-row{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:9px;background:var(--elev);transition:.13s}
+.biz-row:hover{border-color:#2d3650}
+.biz-row .grow{flex:1;min-width:0}
+.biz-t{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.biz-d{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.biz-actions{display:flex;gap:8px;margin-top:12px}
+.biz-actions input{flex:1;min-width:0}
+.biz-actions select{flex:1;min-width:0}
+.empty{color:var(--faint);text-align:center;padding:34px 0;font-size:13px}
+.empty::before{content:"◌";display:block;font-size:22px;color:var(--faint);margin-bottom:6px;opacity:.6}
+
+/* ---------- responsive ---------- */
+@media(max-width:1240px){main{grid-template-columns:260px minmax(0,1fr) 320px}}
+@media(max-width:1020px){main{grid-template-columns:1fr} aside#left,aside#right{display:none} #center{height:calc(100vh - 62px)}}
+@media(max-width:720px){.biz-grid{grid-template-columns:1fr}}
+#modal,#setModal,#prodModal,#runFnModal{position:fixed;inset:0;background:rgba(5,7,12,.66);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:50;padding:22px}
+#modal.hidden,#setModal.hidden,#prodModal.hidden,#runFnModal.hidden{display:none!important}
+/* inline approval request at the composer */
+#approvalRequest{margin-bottom:12px}
+.approval-request{background:linear-gradient(180deg,rgba(251,191,36,.1),var(--panel2));border:1px solid rgba(251,191,36,.4);border-radius:13px;padding:13px 15px;box-shadow:var(--shadow);animation:pop .18s ease}
+.approval-request .ar-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--warn)}
+.approval-request .ar-dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 4px rgba(251,191,36,.18);animation:pulse 1.6s infinite}
+.approval-request .ar-title{font-size:14px;font-weight:700;color:var(--text);margin:7px 0 4px}
+.approval-request .ar-meta{font-size:12px;color:var(--muted);font-family:var(--mono);word-break:break-all;line-height:1.55;max-height:72px;overflow:auto;background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.approval-request .ar-actions{display:flex;gap:8px;margin-top:11px}
+.approval-request .ar-actions button{flex:1;padding:9px;font-weight:700}
+.approval-request .ar-actions .danger{border-color:rgba(248,113,113,.5)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(251,191,36,.18)}50%{box-shadow:0 0 0 7px rgba(251,191,36,.06)}}
+/* ---------- codex-style composer ---------- */
+#composer .composer{display:flex;flex-direction:column;background:var(--panel2);border:1px solid var(--line);border-radius:18px;padding:10px 10px 8px 16px;box-shadow:0 10px 30px rgba(0,0,0,.35);transition:border-color .16s,box-shadow .16s}
+#composer .composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,155,255,.16),0 12px 34px rgba(0,0,0,.4)}
+#composer textarea{flex:1;border:0;background:transparent;resize:none;outline:none;box-shadow:none;color:var(--text);font-size:14px;line-height:1.65;min-height:26px;max-height:220px;overflow:auto;padding:4px 0 6px}
+#composer textarea::placeholder{color:var(--faint)}
+.composer-bar{display:flex;align-items:center;gap:8px;margin-top:2px}
+.composer-left{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.composer-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.c-tool{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid transparent;color:var(--muted);font-size:12px;font-weight:600;padding:5px 9px;border-radius:9px}
+.c-tool:hover{background:var(--elev);border-color:var(--line);color:var(--text);transform:none}
+.c-dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.15);flex:0 0 auto}
+.c-dot.off{background:var(--faint);box-shadow:none}
+.c-caret{font-size:9px;color:var(--faint)}
+.c-hint{font-size:11px;color:var(--faint);white-space:nowrap}
+.send-btn{width:32px;height:32px;padding:0;border-radius:9px;display:grid;place-items:center;background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(47,155,255,.35);transition:.15s;flex:0 0 auto}
+.send-btn:hover{transform:translateY(-1px);box-shadow:0 7px 18px rgba(47,155,255,.45)}
+.send-btn:disabled{opacity:.4;transform:none;box-shadow:none}
+@media(max-width:720px){.c-hint{display:none}}
+.plus-wrap{position:relative}
+.c-tool.plus{width:32px;height:32px;padding:0;justify-content:center;border-radius:9px}
+.c-tool.plus svg{display:block}
+.plus-menu{position:absolute;bottom:calc(100% + 10px);left:0;width:230px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 18px 50px rgba(0,0,0,.5);z-index:60;animation:pop .16s ease}
+.pm-head{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);padding:7px 10px 5px}
+.pm-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;border-radius:9px;color:var(--text);font-size:13px;font-weight:500;padding:9px 10px;margin:1px 0}
+.pm-item:hover{background:var(--elev);color:var(--text);transform:none}
+.pm-item span{width:18px;text-align:center}
+/* skill marketplace (left panel) */
+#skillsArea{display:flex;flex-direction:column;gap:7px;margin-bottom:4px}
+.skill-item{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:10px 11px;transition:.14s}
+.skill-item:hover{border-color:#2d3650}
+.skill-item.installed{border-color:rgba(47,155,255,.4);background:linear-gradient(180deg,rgba(47,155,255,.08),var(--panel2))}
+.skill-icon{width:32px;height:32px;flex:0 0 auto;display:grid;place-items:center;font-size:16px;background:var(--elev);border:1px solid var(--line);border-radius:9px}
+.skill-body{flex:1;min-width:0}
+.skill-t{font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.skill-d{font-size:10.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.skill-item .small{flex:0 0 auto}
+
+/* ---- KARMA cyan hologram enhancement (phase 1 skin overlay) ---- */
+body{background:radial-gradient(1200px 620px at 20% -10%,rgba(47,155,255,.14),transparent 58%),radial-gradient(1000px 560px at 90% 0%,rgba(56,224,255,.10),transparent 55%),#050b1e}
+header{background:rgba(8,16,32,.78);backdrop-filter:blur(16px);border-bottom:1px solid rgba(56,224,255,.18);box-shadow:0 1px 22px rgba(47,155,255,.08)}
+.brand .mark{box-shadow:0 6px 20px rgba(56,224,255,.35),0 0 0 1px rgba(56,224,255,.25)}
+aside{background:linear-gradient(180deg,rgba(12,22,40,.66),rgba(8,15,30,.55));backdrop-filter:blur(10px)}
+.overview,.card,.bizcard,.todo,.approval,.skill-item,.lib-item,details,.chip{border-color:rgba(56,224,255,.14)}
+.overview,.bizcard{box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 0 24px rgba(47,155,255,.04)}
+.tab.active{border-color:rgba(56,224,255,.35);box-shadow:0 0 18px rgba(56,224,255,.12),var(--shadow)}
+button.primary{box-shadow:0 6px 18px rgba(56,224,255,.32)}
+#composer .box{border-color:rgba(56,224,255,.18)}
+#composer .box:focus-within{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(56,224,255,.16),0 10px 30px rgba(0,0,0,.35)}
+::selection{background:rgba(56,224,255,.25)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="mark">K</div>
+    <div>
+      <div class="name">Krama<em> Agent</em></div>
+      <div class="sub">商业操作系统 · Business OS</div>
+    </div>
+  </div>
+  <div id="wsName"></div>
+  <div class="spacer"></div>
+  <div class="hdr-actions">
+    <button class="ghost small" onclick="toggleNeural()">🧠 神经控制台</button>
+    <button class="ghost small" onclick="openSetModal()">⚙ 设置</button>
+    <button class="ghost small" onclick="resetAll()">重置环境</button>
+  </div>
+</header>
+
+<div id="setup">
+  <div class="firstrun">
+    <div class="fr-logo"><div class="mark">K</div><div>Krama<em> Agent</em></div></div>
+    <p class="fr-sub">配置一次模型 Key，Agent 即开始在你的安全框架下自主落地：上架商品、报价谈判、库存物流、收款回执、待办确认。</p>
+    <ul class="fr-features">
+      <li>一句话落地功能</li>
+      <li>全链路执行与回执</li>
+      <li>主人权限确认</li>
+      <li>Karma 收款预留</li>
+    </ul>
+    <div class="field"><label>模型 Key</label><input id="first_model_key" type="password" placeholder="sk-..." autocomplete="off"></div>
+    <div class="field"><label>模型名</label><input id="first_model_name" value="deepseek-chat"></div>
+    <div class="field"><label>Base URL</label><input id="first_model_base" value="https://api.deepseek.com"></div>
+    <button id="firstRunBtn" onclick="firstRunStart()" style="width:100%;padding:12px">保存并启动</button>
+  </div>
+</div>
+
+<main id="app" class="hidden">
+  <aside id="left">
+    <div id="overviewCard" class="overview hidden">
+      <div class="ov-title">生意概览</div>
+      <div id="overview" class="ov-chips"></div>
+    </div>
+    <h2>功能区</h2>
+    <div id="areas"></div>
+    <h2 style="margin-top:18px">技能区（可安装）</h2>
+    <div id="skillsArea"></div>
+    <h2 style="margin-top:16px">模块市场（可安装）</h2>
+    <div id="marketArea"></div>
+    <h2 style="margin-top:16px">组件库（折叠）</h2>
+    <details id="libDetails">
+      <summary><span class="caret">▸</span> 内置工具与功能</summary>
+      <div id="library" style="padding:8px 4px"></div>
+    </details>
+    <div style="margin-top:10px"><button class="small ghost" onclick="openFnModal()">＋ 新建功能</button></div>
+    <div style="margin-top:6px"><button class="small ghost" onclick="$('#fileInput').click()">📎 上传数据文件（CSV/JSON）</button><input id="fileInput" type="file" accept=".csv,.json,.txt,.md" style="display:none" onchange="uploadFile(this)"><input id="imageInput" type="file" accept="image/*" style="display:none" onchange="uploadFile(this)"></div>
+    <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:12px">
+      <button class="small ghost" onclick="openSetModal()" style="width:100%">⚙ 设置（模型 / 聊天工具接入）</button>
+    </div>
+  </aside>
+
+  <div id="center">
+    <div class="tabbar">
+      <button id="tabChat" class="tab active" onclick="showTab('chat')">对话</button>
+      <button id="tabBiz" class="tab" onclick="showTab('biz')">业务看板</button>
+    </div>
+    <section id="chat">
+    <div id="msgs">
+      <div class="msg assistant"><div class="bubble">你好，我是你的商业 Agent。直接用自然语言告诉我做什么，例如：<br>「在测试功能区给我加上一个产品展示区，把 棉麻衬衫 99元、牛仔裤 159元 归类进去」<br>所有操作都会经过权限、审批与回执核验链路。</div></div>
+    </div>
+    <div id="composer">
+      <div id="approvalRequest"></div>
+      <div class="composer" id="composerBox">
+        <textarea id="input" rows="1" placeholder="给 Agent 发指令…"></textarea>
+        <div class="composer-bar">
+          <div class="composer-left">
+            <div class="plus-wrap">
+              <button class="c-tool plus" id="plusBtn" onclick="togglePlusMenu()" title="添加内容">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+              </button>
+              <div id="plusMenu" class="plus-menu hidden">
+                <div class="pm-head">添加内容</div>
+                <button class="pm-item" onclick="plusAction('file')"><span>📎</span> 上传数据文件</button>
+                <button class="pm-item" onclick="plusAction('image')"><span>🖼</span> 上传图片</button>
+                <button class="pm-item" onclick="plusAction('product')"><span>🛒</span> 添加产品</button>
+                <button class="pm-item" onclick="plusAction('function')"><span>🧩</span> 新建功能</button>
+                <button class="pm-item" onclick="plusAction('connector')"><span>🔌</span> 连接渠道</button>
+                <button class="pm-item" onclick="plusAction('settings')"><span>⚙</span> 模型 / 聊天设置</button>
+              </div>
+            </div>
+            <button class="c-tool" id="modelChip" onclick="openSetModal()" title="模型设置">
+              <span class="c-dot"></span><span id="modelChipLabel">模型</span><span class="c-caret">▾</span>
+            </button>
+          </div>
+          <div class="composer-right">
+            <span class="c-hint">Enter 发送 · Shift+Enter 换行</span>
+            <button id="mic" class="c-tool" onclick="toggleVoice()" title="语音输入">🎤</button>
+            <button id="send" class="send-btn" onclick="sendChat()" title="发送">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <section id="biz" class="hidden">
+      <div id="bizKpis" style="margin-bottom:14px"></div>
+      <div class="biz-grid">
+        <div class="bizcard">
+          <h2>功能区 / 我的能力</h2>
+          <div id="bizAreas"></div>
+          <div class="biz-actions">
+            <input id="bizNewFn" placeholder="一句话新增功能，例如：加一个自动接单并派骑手的功能">
+            <button class="small" onclick="bizAddFeature()">交给 Agent 做</button>
+          </div>
+        </div>
+        <div class="bizcard">
+          <h2>AI 团队（角色分工）</h2>
+          <div id="bizRoles"></div>
+        </div>
+        <div class="bizcard">
+          <h2>库存</h2>
+          <div id="bizInventory"></div>
+          <div class="biz-actions">
+            <select id="bizStockProduct"></select>
+            <input id="bizStockQty" type="number" min="1" placeholder="数量">
+            <button class="small" onclick="bizAddStock()">入库</button>
+          </div>
+        </div>
+        <div class="bizcard">
+          <h2>订单</h2>
+          <div id="bizOrders"></div>
+        </div>
+        <div class="bizcard">
+          <h2>客户</h2>
+          <div id="bizCustomers"></div>
+        </div>
+        <div class="bizcard">
+          <h2>运单</h2>
+          <div id="bizShipments"></div>
+        </div>
+        <div class="bizcard">
+          <h2>目标跟踪</h2>
+          <div id="bizGoals"></div>
+          <div class="biz-actions">
+            <input id="bizGoalInput" placeholder="例如：每天盯库存预警和待发货订单">
+            <button class="small" onclick="bizAddGoal()">建立目标</button>
+          </div>
+        </div>
+        <div class="bizcard">
+          <h2>Agent 记忆</h2>
+          <div id="bizMemory"></div>
+          <div class="biz-actions">
+            <input id="bizMemKey" placeholder="key（英文，如 refund_policy）">
+            <input id="bizMemValue" placeholder="value（如 默认不接特辣备注）">
+            <button class="small" onclick="bizSaveMemory()">保存记忆</button>
+          </div>
+        </div>
+        <div class="bizcard">
+          <h2>集成自检</h2>
+          <div id="bizReadiness"></div>
+          <div class="biz-actions"><button class="small" onclick="loadBizReadiness()">刷新自检</button></div>
+        </div>
+        <div class="bizcard">
+          <h2>商务政策</h2>
+          <div id="bizPolicy"></div>
+          <div class="biz-actions">
+            <label class="chk"><input type="checkbox" id="bizPolicyAuto"> 自动接单</label>
+            <input id="bizPolicyDiscount" type="number" min="0" max="100" placeholder="最大折扣 %">
+            <input id="bizPolicyThreshold" type="number" min="0" placeholder="超此金额需审批">
+            <button class="small" onclick="bizSavePolicy()">保存政策</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <aside id="right">
+    <h2>待办与确认</h2>
+    <div id="todos"></div>
+    <div class="divider"></div>
+    <h2>待审批</h2>
+    <div id="approvals"></div>
+    <div class="divider"></div>
+    <details open>
+      <summary><span class="caret">▸</span> 直接调用（高级）</summary>
+      <div style="padding:12px 4px 0">
+        <div class="field"><select id="directSel"></select></div>
+        <div class="field"><textarea id="directParams" rows="2" placeholder='参数 JSON，例如 {"amount":10.0}'></textarea></div>
+        <button class="ghost small" onclick="runDirect()">执行</button>
+      </div>
+    </details>
+  </aside>
+</main>
+
+<div id="setModal" class="hidden">
+  <div class="modal">
+    <h2>设置</h2>
+    <h3 style="margin:16px 0 10px">模型设置</h3>
+    <div class="row">
+      <div class="field"><label>服务商</label>
+        <select id="set_model_provider"><option value="openai_compat">OpenAI 兼容</option></select>
+      </div>
+      <div class="field"><label>模型名</label><input id="set_model_name" placeholder="gpt-5.6-luna"></div>
+    </div>
+    <div class="field"><label>Base URL</label><input id="set_model_base" placeholder="https://api.openai.com/v1"></div>
+    <div class="field"><label>模型 Key（保存后 Agent 直接使用该模型协调链路）</label><input id="set_model_key" type="password" placeholder="sk-..."></div>
+    <button onclick="saveModel()">保存模型</button>
+
+    <h3 style="margin:22px 0 10px">聊天工具接入</h3>
+    <div class="row">
+      <div class="field"><label>工具</label>
+        <select id="set_chat_provider"><option value="telegram">Telegram</option><option value="wechat">微信（webhook）</option><option value="discord">Discord</option><option value="other">其他（通用 webhook）</option></select>
+      </div>
+      <div class="field"><label>启用</label>
+        <select id="set_chat_enabled"><option value="true">是</option><option value="false">否</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Bot / 接入 Token（聊天工具直接下指令用）</label><input id="set_chat_token" type="password" placeholder="bot token"></div>
+    <div class="field"><label>外发 URL（Discord/微信/通用 webhook 必填）</label><input id="set_chat_outbound_url" placeholder="https://..."></div>
+    <button onclick="saveChat()">保存接入</button>
+    <div id="webhookInfo" style="margin-top:12px;font-size:12px;color:var(--muted)"></div>
+
+    <h3 style="margin:22px 0 10px">Karma 收款</h3>
+    <div class="field"><label>Base URL</label><input id="set_karma_base" placeholder="https://api.karma.xyz/v1"></div>
+    <div class="field"><label>API Key（加密保存）</label><input id="set_karma_key" type="password" placeholder="karma key"></div>
+    <div class="row">
+      <div class="field"><label>Agent ID</label><input id="set_karma_agent" placeholder="agent id"></div>
+      <div class="field"><label>Identity ID</label><input id="set_karma_identity" placeholder="identity id"></div>
+    </div>
+    <button onclick="saveKarma()">保存收款</button>
+
+    <h3 style="margin:22px 0 10px">渠道回执（回执网址 + Key）</h3>
+    <div class="row">
+      <div class="field"><label>渠道</label>
+        <select id="set_channel_type" onchange="loadChannelConfig()">
+          <option value="ecommerce_independent">独立站</option>
+          <option value="ecommerce_social">社交网店</option>
+          <option value="takeout_delivery">外卖配送</option>
+          <option value="ecommerce_marketplace">电商平台</option>
+          <option value="logistics">物流管理</option>
+          <option value="cross_border">跨境电商</option>
+          <option value="foreign_trade">外贸业务</option>
+        </select>
+      </div>
+      <div class="field"><label>请求方式</label>
+        <select id="set_channel_method"><option value="GET">GET</option><option value="POST">POST</option></select>
+      </div>
+    </div>
+        <div class="row">
+      <div class="field"><label>签名渠道（淘宝 / 抖店 / 顺丰；选「通用」走普通回执网址）</label>
+        <select id="set_channel_signer" onchange="onSignerChange()">
+          <option value="">通用回执网址</option>
+          <option value="taobao">淘宝开放平台（TOP）</option>
+          <option value="douyin">抖店 / 抖音电商</option>
+          <option value="sfexpress">顺丰丰桥</option>
+        </select>
+      </div>
+    </div>
+    <div id="signer_fields" class="hidden" style="border:1px solid var(--border,#303644);border-radius:10px;padding:10px;margin:0 0 10px">
+      <div id="sf_taobao" class="hidden">
+        <div class="row">
+          <div class="field"><label>App Key</label><input id="set_tb_app_key" placeholder="淘宝 App Key"></div>
+          <div class="field"><label>App Secret（加密保存）</label><input id="set_tb_app_secret" type="password" placeholder="淘宝 App Secret"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Session（私域授权，可选）</label><input id="set_tb_session" type="password" placeholder="session token"></div>
+          <div class="field"><label>创建订单 API 方法</label><input id="set_tb_create_method" placeholder="taobao.trade.create"></div>
+        </div>
+        <div class="field"><label>读单 API 方法</label><input id="set_tb_read_method" placeholder="taobao.trade.fullinfo.get"></div>
+      </div>
+      <div id="sf_douyin" class="hidden">
+        <div class="row">
+          <div class="field"><label>App ID</label><input id="set_dy_app_id" placeholder="抖店 App ID"></div>
+          <div class="field"><label>App Secret（加密保存）</label><input id="set_dy_app_secret" type="password" placeholder="抖店 App Secret"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Access Token（加密保存）</label><input id="set_dy_access_token" type="password" placeholder="店铺 access_token"></div>
+          <div class="field"><label>签名方式</label>
+            <select id="set_dy_sign_method"><option value="hmac-sha256">HMAC-SHA256</option><option value="md5">MD5</option></select>
+          </div>
+        </div>
+        <div class="field"><label>读单 API 方法</label><input id="set_dy_read_method" placeholder="order.list"></div>
+      </div>
+      <div id="sf_sf" class="hidden">
+        <div class="row">
+          <div class="field"><label>月结卡号 / 客户编码</label><input id="set_sf_partner_id" placeholder="partnerID / clientCode"></div>
+          <div class="field"><label>校验码（加密保存）</label><input id="set_sf_checkword" type="password" placeholder="checkword"></div>
+        </div>
+        <div class="field"><label>顺丰服务码 serviceCode</label><input id="set_sf_service_code" placeholder="EXP_RECE_SEARCH"></div>
+      </div>
+    </div>
+<div class="field"><label>回执网址 / 数据源 URL（支持 {order_id} 等占位符）</label><input id="set_channel_url" placeholder="https://你的系统/api/receipts"></div>
+    <div class="row" id="generic_auth_row">
+      <div class="field"><label>认证方式</label>
+        <select id="set_channel_auth"><option value="none">无</option><option value="bearer">Bearer Token</option><option value="api_key">API Key</option></select>
+      </div>
+      <div class="field"><label>Token / Key（加密保存）</label><input id="set_channel_token" type="password" placeholder="token 或 key"></div>
+    </div>
+    <div class="field" id="generic_auth_header"><label>API Key 头（默认 X-Api-Key）</label><input id="set_channel_auth_header" placeholder="X-Api-Key"></div>
+    <label class="chk" id="generic_private" style="margin:6px 0 10px"><input type="checkbox" id="set_channel_private"> 允许本地/内网回执地址（仅自建 ERP/本地测试用，SSRF 默认拦截）</label>
+    <button onclick="saveChannel()">保存渠道回执</button><button class="ghost" onclick="testChannelRead()">读取一次回执</button>
+    <div id="channelReadOut" style="margin-top:10px;font-size:12px;color:var(--muted);white-space:pre-wrap"></div>
+
+    <h3 style="margin:22px 0 10px">邮件确认（SMTP）</h3>
+    <div class="row">
+      <div class="field"><label>SMTP Host</label><input id="set_smtp_host" placeholder="smtp.example.com"></div>
+      <div class="field"><label>端口</label><input id="set_smtp_port" type="number" value="465"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>账号</label><input id="set_smtp_user" placeholder="user@example.com"></div>
+      <div class="field"><label>密码 / 授权码</label><input id="set_smtp_password" type="password" placeholder="SMTP 授权码"></div>
+    </div>
+    <div class="field"><label>发件人</label><input id="set_smtp_from" placeholder="Krama <user@example.com>"></div>
+    <div class="field"><label>收件邮箱（主人确认码发到这里）</label><input id="set_owner_email" placeholder="owner@example.com"></div>
+    <div class="row" style="gap:8px"><button onclick="saveSmtp()">保存邮件配置</button><button class="ghost" onclick="testEmail()">发送测试邮件</button></div>
+
+    <div class="row" style="margin-top:16px"><button class="ghost" onclick="closeSetModal()">关闭</button></div>
+  </div>
+</div>
+
+<div id="modal" class="hidden">
+  <div class="modal">
+    <h2>新建功能</h2>
+    <div class="row">
+      <div class="field"><label>名称（英文标识）</label><input id="fn_name" placeholder="read_receipt"></div>
+      <div class="field"><label>种类</label>
+        <select id="fn_kind">
+          <option value="http_read">http_read 读取</option>
+          <option value="http_write">http_write 写回</option>
+          <option value="karma">karma 收款</option>
+          <option value="model">model 模型</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>分类</label>
+        <select id="fn_category">
+          <option value="general">通用</option><option value="receipt">回执</option><option value="inventory">库存</option>
+          <option value="pricing">价格</option><option value="orders">订单</option><option value="payment">支付</option>
+        </select>
+      </div>
+      <div class="field"><label>方法</label>
+        <select id="fn_method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+      </div>
+    </div>
+    <div class="field"><label>回执网址 / 数据源 URL（支持 {order_id} 占位符）</label><input id="fn_url" placeholder="https://shop.example.com/orders/{order_id}/receipt"></div>
+    <div class="row">
+      <div class="field"><label>鉴权方式</label>
+        <select id="fn_auth"><option value="none">无</option><option value="bearer">Bearer</option><option value="api_key">API Key 头</option><option value="basic">Basic</option></select>
+      </div>
+      <div class="field"><label>密钥（或环境变量名）</label><input id="fn_token" placeholder="token 或 MY_TOKEN"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>回执状态字段路径</label><input id="fn_status" placeholder="receipt_status"></div>
+      <div class="field"><label>回执编号字段路径</label><input id="fn_ref" placeholder="provider_reference"></div>
+    </div>
+    <div class="field"><label>描述</label><input id="fn_desc" placeholder="读取订单回执"></div>
+    <div class="row"><button class="ghost" onclick="closeFnModal()">取消</button><button onclick="createFn()">保存</button></div>
+  </div>
+</div>
+
+<div id="prodModal" class="hidden">
+  <div class="modal">
+    <h2 id="prodModalTitle">添加产品</h2>
+    <div class="row">
+      <div class="field"><label>名称</label><input id="prod_name" placeholder="产品名称"></div>
+      <div class="field"><label>类目</label><input id="prod_category" placeholder="如 服饰 / 女装"></div>
+    </div>
+    <div class="field"><label>单价（¥）</label><input id="prod_price" type="number" step="0.01" placeholder="99"></div>
+    <div class="field"><label>产品照片 URL</label><input id="prod_photo" placeholder="https://..."></div>
+    <div class="field"><label>规格类目（JSON，如 {"材质":"棉","颜色":"白"}）</label><textarea id="prod_specs" rows="2" placeholder='{"材质":"棉","颜色":"白"}'></textarea></div>
+    <div class="field"><label>产品详情</label><textarea id="prod_detail" rows="3" placeholder="100%棉，宽松版型…"></textarea></div>
+    <div class="field"><label>资质（逗号分隔，如 GB18401, SGS 检测）</label><input id="prod_quals" placeholder="GB18401, SGS 检测"></div>
+    <div class="row"><button class="ghost" onclick="closeProdModal()">取消</button><button onclick="saveProdModal()">保存</button></div>
+  </div>
+</div>
+
+<div id="runFnModal" class="hidden">
+  <div class="modal">
+    <h2 id="runFnTitle">运行功能</h2>
+    <div id="runFnDesc" style="color:var(--muted);font-size:12px;margin:6px 0 10px"></div>
+    <div class="field"><label>输入参数（JSON，可空）</label><textarea id="runFnParams" rows="3" placeholder='{"customer_id":"...","message":"..."}'></textarea></div>
+    <div id="runFnResult" class="card hidden" style="margin:10px 0;max-height:240px;overflow:auto"></div>
+    <div class="row"><button class="ghost" onclick="closeRunFnModal()">关闭</button><button id="runFnBtn" onclick="runFn()">运行</button></div>
+  </div>
+</div>
+
+<div id="neural">
+  <div id="neuralTop">
+    <span class="nt-title">🧠 神经控制台</span>
+    <span class="nt-sub">主脑全局感知 · 每个面板都是一条神经线</span>
+    <div class="spacer"></div>
+    <button class="ghost small" onclick="neuralOpenPanelModal()">＋ 面板</button>
+    <button class="ghost small" onclick="neuralReset()">复位布局</button>
+    <button class="ghost small" onclick="toggleNeural()">关闭</button>
+  </div>
+  <div id="neuralStage">
+    <svg id="neuralSvg"></svg>
+    <div id="brainNode">
+      <div class="bn-head"><span class="bn-pulse"></span>主脑 · 全局事件流</div>
+      <div class="bn-feed" id="brainFeed">加载中…</div>
+      <div class="bn-hints hidden" id="brainHints"></div>
+    </div>
+  </div>
+</div><div id="neuralPanelModal" class="hidden" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center">
+  <div class="modal" style="width:460px">
+    <h2>添加面板（schema 校验）</h2>
+    <div class="field"><label>组件类型</label>
+      <select id="npType"></select>
+    </div>
+    <div class="field"><label>标题</label><input id="npTitle" placeholder="例如：客户资料"></div>
+    <div class="field hidden" id="npSourceRow"><label>数据源</label>
+      <select id="npSource"></select>
+    </div>
+    <div id="npErrors" style="color:var(--danger);font-size:12px;margin:8px 0"></div>
+    <div class="row" style="gap:8px"><button onclick="neuralAddPanel()">添加</button><button class="ghost" onclick="neuralClosePanelModal()">取消</button></div>
+  </div>
+</div><script>
+const state = { userId:null, apiKey:null, workspaceId:null, workspaceName:null };
+const LS_KEY = "krama.console.v1";
+const $ = s => document.querySelector(s);
+let catalog = [];
+let products = [];
+
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+function loadState(){ try{ Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY)||"{}")); }catch(e){} }
+function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function resetAll(){ localStorage.removeItem(LS_KEY); location.reload(); }
+
+async function fetchJson(path, opts){
+  const res = await fetch(path, opts);
+  if(!res.ok){ let d=res.statusText; try{ d=(await res.json()).detail||d; }catch(e){} throw new Error(d||("HTTP "+res.status)); }
+  if(res.status===204) return null;
+  return res.json();
+}
+function baseHeaders(){ return {"Content-Type":"application/json"}; }
+function authHeaders(){ return {...baseHeaders(), "Authorization":"Bearer "+state.apiKey}; }
+function wsHeaders(){ return {...authHeaders(), "X-Workspace-Id": state.workspaceId}; }
+
+async function setup(){
+  const email = "console-"+Date.now()+"@local";
+  const u = await fetchJson("/users",{method:"POST",headers:baseHeaders(),body:JSON.stringify({email, display_name:"商家"})});
+  const k = await fetchJson(`/users/${u.id}/api-keys`,{method:"POST",headers:baseHeaders()});
+  const w = await fetchJson("/workspaces",{method:"POST",headers:{...baseHeaders(),"Authorization":"Bearer "+k.api_key},body:JSON.stringify({name:"我的店铺",region:"CN",business_category:"clothing"})});
+  state.userId=u.id; state.apiKey=k.api_key; state.workspaceId=w.id; state.workspaceName=w.name;
+  saveState();
+}
+
+async function firstRunStart(){
+  const btn = $("#firstRunBtn");
+  btn.disabled = true; btn.textContent = "启动中…";
+  try{
+    await setup();
+    const body = {model:{
+      provider: "openai_compat",
+      base_url: $("#first_model_base").value.trim() || "https://api.deepseek.com",
+      model: $("#first_model_name").value.trim() || "deepseek-chat",
+      api_key: $("#first_model_key").value.trim(),
+    }};
+    await fetchJson(`/workspaces/${state.workspaceId}/settings`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+    toast("模型已保存，Agent 已启动");
+    enter();
+  }catch(e){
+    toast("启动失败："+e.message);
+    btn.disabled = false; btn.textContent = "保存并启动";
+  }
+}
+
+function enter(){
+  $("#setup").classList.add("hidden"); $("#app").classList.remove("hidden");
+  $("#wsName").textContent = state.workspaceName || "";
+  refresh();
+}
+async function refresh(){
+  await Promise.all([loadCatalog(), loadAreas(), loadApprovals(), loadTodos(), loadSettings(), loadOverview(), loadSkills(), loadMarket()]);
+  fillDirectSelect();
+}
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function loadCatalog(){
+  catalog = (await fetchJson(`/workspaces/${state.workspaceId}/catalog`,{headers:wsHeaders()})).catalog;
+  const groups = {tool:"内置工具", connector:"连接器", function:"自定义功能"};
+  $("#library").innerHTML = Object.keys(groups).map(k=>{
+    const items = catalog.filter(c=>c.type===k);
+    return `<div style="margin:8px 0 2px;font-size:11px;color:var(--muted)">${groups[k]}</div>` + items.map(item=>{
+      const badge = item.risk_level ? `<span class="badge r${(item.risk_level||'r0').toLowerCase()}">${item.risk_level}</span>` : "";
+      const kind = item.kind ? `<span class="badge kind">${item.kind}</span>` : "";
+      const name = item.name || item.connector_type;
+      const desc = item.description || item.connector_type || item.category || "";
+      return `<div class="lib-item" data-type="${item.type}" data-name="${esc(name)}" data-id="${item.id||""}" data-ctype="${item.connector_type||""}">
+        <div class="grow"><div class="t">${esc(name)}</div><div class="d">${esc(desc)}</div></div>${badge}${kind}
+        <button class="icon" onclick="addFromLibrary(this.parentElement)">＋</button>
+      </div>`;
+    }).join("");
+  }).join("");
+}
+
+async function loadAreas(){
+  const areas = (await fetchJson(`/workspaces/${state.workspaceId}/layout`,{headers:wsHeaders()})).areas;
+  products = (await fetchJson(`/workspaces/${state.workspaceId}/products`,{headers:wsHeaders()})).products;
+  const roots = areas.filter(a=>!a.parent_id);
+  const live = roots.filter(a=>a.stage!=="test");
+  const test = roots.filter(a=>a.stage==="test");
+  const section = (title, list) => `<div style="margin:10px 0 6px;font-size:11px;color:var(--muted)">${title}</div>` + (list.length ? list.map(a=>renderArea(a, areas)).join("") : `<div class="empty" style="padding:12px 0">（空）</div>`);
+  $("#areas").innerHTML = section("功能区（已上线）", live) + section("测试功能区（开发/测试）", test);
+}
+
+async function loadOverview(){
+  const card = $("#overviewCard");
+  try{
+    const o = await fetchJson(`/workspaces/${state.workspaceId}/overview`,{headers:wsHeaders()});
+    const p = o.pipeline || {};
+    const chip = (label, val) => `<span class="chip">${label} <b>${esc(val ?? 0)}</b></span>`;
+    $("#overview").innerHTML =
+      chip("商品", o.products) + chip("已上线", o.published) + chip("库存", o.total_stock) + chip("客户", o.customers) +
+      chip("新增", p["new"]) + chip("意向", p.lead) + chip("成交", p.won) + chip("流失", p.lost) +
+      chip("在线功能", o.live_areas);
+    try{
+      const d = await fetchJson(`/workspaces/${state.workspaceId}/dashboard`,{headers:wsHeaders()});
+      const t = d.todos || {};
+      $("#overview").innerHTML +=
+        `<span class="chip" style="border-color:#3a2f12">必须确认 <b>${esc(t.must_confirm ?? 0)}</b></span>` +
+        `<span class="chip" style="border-color:#123c34">需回复 <b>${esc(t.needs_reply ?? 0)}</b></span>` +
+        `<span class="chip" style="border-color:#1c2340">仅通知 <b>${esc(t.info ?? 0)}</b></span>`;
+    }catch(e){ /* dashboard optional */ }
+    card.classList.remove("hidden");
+  }catch(e){ card.classList.add("hidden"); }
+}
+function prodsOf(areaId){ return products.filter(p=>p.layout_area_id===areaId); }
+function fnOf(id){ return catalog.find(c=>c.type==="function" && c.id===id); }
+function renderArea(a, all){
+  const children = all.filter(x=>x.parent_id===a.id);
+  const ps = prodsOf(a.id);
+  const manageable = ["product","product_manage","product_display"].includes(a.target_type);
+  const isFn = a.kind==="function" && a.target_type==="function" && a.target_id;
+  const fn = isFn ? fnOf(a.target_id) : null;
+  const stageBadge = a.stage==="test" ? `<span class="badge r2">测试</span>` : `<span class="badge r1">已上线</span>`;
+  const inner = children.map(c=>renderArea(c, all)).join("") + ps.map(p=>`
+    <div class="area-row"><span class="grow"><span class="prod">· ${esc(p.name)} ¥${p.price}</span>
+      ${p.specs&&Object.keys(p.specs).length?`<div class="sub" style="font-size:11px;color:var(--muted)">${esc(Object.entries(p.specs).map(([k,v])=>k+":"+v).join("，"))}</div>`:""}
+    </span>
+    ${manageable?`<button class="small" onclick="openProdModal('${a.id}','${p.id}')">编辑</button>`:""}</div>`).join("");
+  const addBtn = manageable ? `<div class="area-row"><button class="small" onclick="openProdModal('${a.id}')">＋ 添加产品</button></div>` : "";
+  const fnDesc = fn ? `<div class="area-row"><div class="grow" style="color:var(--muted);font-size:11px">${esc(fn.description||fn.display_name||fn.name)}${fn.acceptance?` · 验收：${esc(fn.acceptance)}`:""}</div></div>` : "";
+  const fnRun = fn ? `<div class="area-row"><button class="small" onclick="openRunFnModal('${a.target_id}','${esc(fn.display_name||a.name)}')">▶ 运行/测试</button></div>` : "";
+  const promoteBtn = a.stage==="test" ? `<div class="area-row"><button class="small" onclick="promoteArea('${a.id}')">✅ 测试通过，上线到功能区</button></div>` : "";
+  const caret = (children.length||ps.length||isFn) ? '<span class="caret">▸</span>' : '';
+  return `<details open><summary>${caret}<span class="badge area">${esc(a.kind)}</span><span class="grow">${esc(a.name)}</span>${stageBadge}</summary>
+    ${inner ? `<div class="area-row"><div class="grow" style="color:var(--muted);font-size:11px">子功能/商品</div></div>`+inner : ''}
+    ${fnDesc}
+    ${fnRun}
+    ${addBtn}
+    ${promoteBtn}
+  </details>`;
+}
+
+async function promoteArea(areaId){
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/layout/${areaId}`,{method:"PATCH",headers:wsHeaders(),body:JSON.stringify({stage:"live"})});
+    await loadAreas();
+    toast("已上线到功能区，Agent 会自动读取该功能进行全链路联动");
+  }catch(e){ toast(e.message); }
+}
+
+async function addFromLibrary(el){
+  const type = el.dataset.type, name = el.dataset.name, id = el.dataset.id, ctype = el.dataset.ctype;
+  let body = {name, kind:"tool", target_type:"tool", target_id:name};
+  if(type==="connector"){ body = {name, kind:"connector", target_type:ctype, target_id:id}; }
+  if(type==="function"){ body = {name, kind:"function", target_type:"function", target_id:id}; }
+  try{ await fetchJson(`/workspaces/${state.workspaceId}/layout`,{method:"POST",headers:wsHeaders(),body:JSON.stringify(body)}); await loadAreas(); toast("已添加："+name); }catch(e){ toast(e.message); }
+}
+
+// ---- chat ----
+function addMsg(role, html){
+  const wrap = document.createElement("div"); wrap.className = "msg "+role;
+  wrap.innerHTML = `<div class="who">${role==="user"?"你":"Agent"}</div><div class="bubble">${html}</div>`;
+  $("#msgs").appendChild(wrap); $("#msgs").scrollTop = $("#msgs").scrollHeight;
+  return wrap;
+}
+function replyHtml(text){ return esc(text).replace(/\n/g,"<br>"); }
+
+async function sendChat(){
+  const message = $("#input").value.trim(); if(!message) return;
+  $("#input").value = "";
+  addMsg("user", replyHtml(message));
+  const thinking = addMsg("assistant", '<span style="color:var(--muted)">处理中…</span>');
+  try{
+    const data = await fetchJson(`/workspaces/${state.workspaceId}/chat`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({message})});
+    let html = replyHtml(data.reply||"");
+    if(data.intent==="product_display" && data.created && data.created.length){
+      html += `<div class="card"><div class="t">已归类商品</div><ul style="margin:0;padding-left:18px">`+
+        data.created.map(p=>`<li>${esc(p.name)} — ¥${p.price}</li>`).join("")+`</ul></div>`;
+    }
+    if(data.actions && data.actions.length){
+      const trace = data.actions.map(a=>{
+        const dec = a.decision || "";
+        const tool = a.tool || a.name || "";
+        const r = (a.result && typeof a.result === "object") ? a.result : {};
+        const brief = r.error ? ("✗ "+esc(r.error))
+          : (r.summary || r.reply || r.message || (r.receipt_status ? ("回执:"+esc(r.receipt_status)) : (r.id||r.product_id||r.order_id||r.area_id||r.function_id ? ("id:"+esc(r.id||r.product_id||r.order_id||r.area_id||r.function_id)) : "")));
+        return `<div class="row"><span class="badge ${dec==="DENIED"?"r2":dec==="PENDING"?"r1":"r0"}">${esc(dec)}</span><span>${esc(tool)}</span><span style="color:var(--muted);font-size:11px">${brief}</span></div>`;
+      }).join("");
+      html += `<details class="card" open><summary class="t">执行链路（${data.actions.length} 步${data.plan_source?" · "+esc(data.plan_source):""}）</summary>${trace}</details>`;
+    }
+    const approvalId = pendingApprovalId(data);
+    if(approvalId){
+      html += `<div class="card" style="border-color:rgba(251,191,36,.45)">该操作需要你的批准，请在下方输入框上方点击「批准」或「拒绝」。</div>`;
+    }
+    if(data.hints && data.hints.length){
+      html += `<div class="card" style="border-color:rgba(251,191,36,.4)">主脑安全提示：` +
+        data.hints.map(h=>`<div style="margin:4px 0">${h.severity==="danger"?"⚠️":"💡"} ${esc(h.message)}</div>`).join("") +
+        `</div>`;
+      neuralSetHints(data.hints);
+    }else{
+      neuralSetHints([]);
+    }
+    thinking.innerHTML = `<div class="who">Agent</div><div class="bubble">${html}</div>`;
+    if(approvalId){ showApprovalRequest(approvalId); }
+    await Promise.all([loadCatalog(), loadAreas(), loadApprovals(), loadTodos()]);
+  }catch(e){
+    thinking.innerHTML = `<div class="who">Agent</div><div class="bubble" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+  $("#msgs").scrollTop = $("#msgs").scrollHeight;
+}
+
+// ---- inline approval request (composer) ----
+let pendingApproval = null;
+function pendingApprovalId(data){
+  if(data && data.approval_id){ return data.approval_id; }
+  if(data && data.decision === "PENDING"){ return data.approval_id || null; }
+  const acts = data && data.actions;
+  if(Array.isArray(acts)){
+    const pending = acts.find(a => a.decision === "PENDING" || a.approval_id);
+    if(pending){ return pending.approval_id || null; }
+  }
+  return null;
+}
+async function showApprovalRequest(approvalId){
+  try{
+    const data = await fetchJson(`/workspaces/${state.workspaceId}/approvals`,{headers:wsHeaders()});
+    const a = data.approvals.find(x => x.id === approvalId && x.status === "PENDING");
+    if(!a){ clearApprovalRequest(); return; }
+    pendingApproval = a;
+    renderApprovalRequest();
+  }catch(e){ /* approvals may be unavailable */ }
+}
+function renderApprovalRequest(){
+  const a = pendingApproval;
+  if(!a){ $("#approvalRequest").innerHTML = ""; return; }
+  $("#approvalRequest").innerHTML = `
+    <div class="approval-request">
+      <div class="ar-head"><span class="ar-dot"></span>需要你的批准</div>
+      <div class="ar-title">${esc(a.action)}</div>
+      <div class="ar-meta">${esc(JSON.stringify(a.payload))}</div>
+      <div class="ar-actions">
+        <button class="small" onclick="resolveApproval(true)">批准</button>
+        <button class="danger small" onclick="resolveApproval(false)">拒绝</button>
+      </div>
+    </div>`;
+}
+function clearApprovalRequest(){ pendingApproval = null; $("#approvalRequest").innerHTML = ""; }
+async function resolveApproval(approve){
+  if(!pendingApproval){ return; }
+  const id = pendingApproval.id;
+  try{
+    await fetchJson(`/approvals/${id}/decision`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({approve})});
+    toast(approve ? "已批准" : "已拒绝");
+    clearApprovalRequest();
+    await Promise.all([loadApprovals(), loadTodos()]);
+  }catch(e){ toast(e.message); }
+}
+
+// ---- approvals ----
+async function loadApprovals(){
+  const data = await fetchJson(`/workspaces/${state.workspaceId}/approvals`,{headers:wsHeaders()});
+  const pending = data.approvals.filter(a=>a.status==="PENDING");
+  $("#approvals").innerHTML = pending.length ? pending.map(a=>`
+    <div class="approval">
+      <div class="title"><span class="kindtag">${esc(a.risk_level||'R0')}</span>${esc(a.action)}</div>
+      <div class="meta">${esc(JSON.stringify(a.payload))}</div>
+      <div class="btn-row"><button class="small" onclick="decide('${a.id}',true)">批准</button><button class="danger small" onclick="decide('${a.id}',false)">拒绝</button></div>
+    </div>`).join("") : `<div style="color:var(--muted);font-size:12px">无待审批项</div>`;
+}
+async function decide(id, approve){
+  await fetchJson(`/approvals/${id}/decision`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({approve})});
+  toast(approve?"已批准":"已拒绝");
+  if(pendingApproval && pendingApproval.id === id){ clearApprovalRequest(); }
+  await Promise.all([loadApprovals(), loadTodos()]);
+}
+
+// ---- todos / owner triage ----
+const TODO_KIND_LABEL = {must_confirm:"必须确认", needs_reply:"需回复", info:"仅通知"};
+async function loadTodos(){
+  try{
+    const data = await fetchJson(`/workspaces/${state.workspaceId}/todos?status=pending`,{headers:wsHeaders()});
+    const todos = data.todos || [];
+    $("#todos").innerHTML = todos.length ? todos.map(t=>{
+      const label = TODO_KIND_LABEL[t.kind] || t.kind;
+      if(t.kind==="must_confirm"){
+        return `<div class="todo must_confirm">
+          <div class="title"><span class="kindtag">${esc(label)}</span>${esc(t.title)}</div>
+          <div class="meta">${esc(t.detail)}</div>
+          <div class="todo-actions">
+            <input id="code_${esc(t.id)}" class="code-input" maxlength="6" placeholder="邮箱 6 位确认码" inputmode="numeric">
+            <button class="small" onclick="confirmTodo('${esc(t.id)}')">批准</button>
+            <button class="danger small" onclick="markTodo('${esc(t.id)}','cancelled')">拒绝</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="todo ${esc(t.kind)}">
+        <div class="title"><span class="kindtag">${esc(label)}</span>${esc(t.title)}</div>
+        <div class="meta">${esc(t.detail)}</div>
+        <div class="btn-row"><button class="small" onclick="markTodo('${esc(t.id)}','done')">已完成</button><button class="danger small" onclick="markTodo('${esc(t.id)}','cancelled')">忽略</button></div>
+      </div>`;
+    }).join("") : `<div style="color:var(--muted);font-size:12px">无待办项</div>`;
+  }catch(e){ $("#todos").innerHTML = `<div style="color:var(--danger);font-size:12px">${esc(e.message)}</div>`; }
+}
+async function confirmTodo(id){
+  const code = ($("#code_"+id)||{}).value || "";
+  if(!code){ toast("请输入邮件中的数字确认码"); return; }
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/todos/${id}/confirm`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({code})});
+    toast("已确认"); await Promise.all([loadTodos(), loadApprovals()]);
+  }catch(e){ toast(e.message); }
+}
+async function markTodo(id, status){
+  await fetchJson(`/workspaces/${state.workspaceId}/todos/${id}/status`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({status})});
+  toast(status==="done"?"已完成 / 已批准":"已忽略 / 已拒绝");
+  await Promise.all([loadTodos(), loadApprovals()]);
+}
+
+// ---- direct call ----
+function fillDirectSelect(){
+  const items = catalog.filter(c=>c.type==="tool"||c.type==="function");
+  $("#directSel").innerHTML = items.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}${c.risk_level?(" ["+esc(c.risk_level)+"]"):""}</option>`).join("") || `<option>无</option>`;
+}
+async function runDirect(){
+  const tool = $("#directSel").value; let params={};
+  try{ params = JSON.parse($("#directParams").value.trim()||"{}"); }catch(e){ toast("参数不是合法 JSON"); return; }
+  try{
+    const res = await fetchJson("/gateway/execute",{method:"POST",headers:wsHeaders(),body:JSON.stringify({tool, params})});
+    if(res.decision==="ALLOWED"){ addMsg("assistant", replyHtml("执行成功："+JSON.stringify(res.result).slice(0,500))); }
+    else if(res.decision==="PENDING"){ addMsg("assistant", replyHtml("需要批准（#"+res.approval_id+"），请在下方点击批准或拒绝。")); showApprovalRequest(res.approval_id); loadApprovals(); loadTodos(); }
+    else{ addMsg("assistant", replyHtml(res.decision+" "+res.reason)); }
+  }catch(e){ addMsg("assistant", replyHtml("错误："+e.message)); }
+}
+
+// ---- business panel (orders / inventory / shipments) ----
+let bizInventory = [];
+let bizOrders = [];
+let bizShipments = [];
+let bizCustomers = [];
+
+function showTab(which){
+  const chat = which==="chat";
+  $("#chat").classList.toggle("hidden", !chat);
+  $("#biz").classList.toggle("hidden", chat);
+  $("#tabChat").classList.toggle("active", chat);
+  $("#tabBiz").classList.toggle("active", !chat);
+  if(!chat){ loadBiz(); }
+}
+
+async function loadBiz(){
+  await Promise.all([loadBizKpis(), loadBizInventory(), loadBizOrders(), loadBizCustomers(), loadBizShipments(), loadBizGoals(), loadBizMemory(), loadBizReadiness(), loadBizPolicy(), loadRoles()]);
+}
+
+async function loadRoles(){
+  try{
+    const d = await fetchJson("/roles");
+    const roles = d.roles || [];
+    $("#bizRoles").innerHTML = roles.map(r=>
+      `<div class="biz-row"><div class="grow"><div class="biz-t">${r.icon} ${esc(r.name)} <span class="badge kind">${esc(r.id)}</span></div><div class="biz-d">${esc(r.mission)}</div><div class="biz-d muted">工具：${(r.tools||[]).map(t=>esc(t)).join(" · ")}</div></div></div>`
+    ).join("") || `<div class="empty">暂无角色</div>`;
+  }catch(e){ $("#bizRoles").innerHTML = `<span style="color:var(--danger);font-size:12px">${esc(e.message)}</span>`; }
+}
+
+async function loadBizKpis(){
+  try{
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/dashboard`,{headers:wsHeaders()});
+    const k = d.kpis || {};
+    const m = d.merchant || {};
+    const chip = (label, val, warn) => `<span class="chip"${warn?` style="border-color:#f59e0b;color:#fbbf24"`:""}>${label} <b>${esc(val ?? 0)}</b></span>`;
+    const catName = {food:"餐饮", ecommerce:"电商/外贸", clothing:"服装", beauty:"美妆/化妆品", transport:"物流/出行", housing:"住宿/房产", service:"服务预约", general:"通用"}[m.category] || m.category || "未设置";
+    $("#bizKpis").innerHTML =
+      `<div style="font-size:11px;color:var(--muted);margin-bottom:6px">🛡 所有外发 / 支付 / 不可逆动作均须主人确认；确认码仅邮件发送。</div>` +
+      `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">${esc(m.shop_name||"我的生意")} · ${esc(catName)}</div>` +
+      chip("商品", k.products) + chip("订单", k.orders) + chip("待发货", k.pending_ship) +
+      chip("配送中", k.in_delivery) + chip("已送达", k.delivered) +
+      chip("库存预警", k.low_stock, k.low_stock>0) +
+      chip("客户", k.customers) + chip("成交", (k.pipeline||{}).won) + chip("意向", (k.pipeline||{}).lead) +
+      chip("待审批", k.pending_approvals, k.pending_approvals>0) +
+      chip("必须确认", (k.todos||{}).must_confirm, (k.todos||{}).must_confirm>0);
+    const areas = d.areas || [];
+    $("#bizAreas").innerHTML = areas.map(a=>{
+      const live = a.stage!=="test";
+      return `<div class="biz-row"><div class="grow"><div class="biz-t">${esc(a.name)}</div><div class="biz-d">${esc(a.target_type||a.kind)}</div></div>
+        <span class="badge ${live?"r1":"r2"}">${live?"已上线":"测试"}</span>
+        ${live?"":`<button class="small" onclick="bizPromoteArea('${a.id}')">✅ 上线</button>`}</div>`;
+    }).join("") || `<div class="empty">暂无功能区，给 Agent 下一条指令即可开始搭建</div>`;
+  }catch(e){ $("#bizKpis").innerHTML = `<span style="color:var(--danger);font-size:12px">${esc(e.message)}</span>`; }
+}
+
+async function loadBizGoals(){
+  try{
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/goals`,{headers:wsHeaders()});
+    $("#bizGoals").innerHTML = (d.goals||[]).map(g=>{
+      const statusText = {active:"进行中",done:"完成",cancelled:"取消"}[g.status]||g.status;
+      const badge = g.status==="active"?"r1":(g.status==="done"?"r0":"r2");
+      const act = g.status==="active" ? `<button class="small" onclick="bizGoalDone('${g.id}')">完成</button>` : "";
+      return `<div class="biz-row"><div class="grow"><div class="biz-t">${esc(g.title)}</div><div class="biz-d">${esc(g.progress_note||g.detail||"")}</div></div><span class="badge ${badge}">${statusText}</span>${act}</div>`;
+    }).join("") || `<div class="empty">暂无目标。给 Agent 说「持续跟踪…」即可建立。</div>`;
+  }catch(e){ $("#bizGoals").innerHTML = `<span style="color:var(--danger);font-size:12px">${esc(e.message)}</span>`; }
+}
+
+async function bizAddGoal(){
+  const title = $("#bizGoalInput").value.trim();
+  if(!title){ toast("先描述要跟踪的目标"); return; }
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/goals`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({title, detail:title})});
+    $("#bizGoalInput").value = "";
+    toast("目标已建立，Agent 会在后台持续跟踪");
+    await loadBizGoals();
+  }catch(e){ toast(e.message); }
+}
+
+async function bizGoalDone(id){
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/goals/${id}`,{method:"PATCH",headers:wsHeaders(),body:JSON.stringify({status:"done"})});
+    await loadBizGoals();
+  }catch(e){ toast(e.message); }
+}
+
+async function loadBizMemory(){
+  try{
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/agent/memory`,{headers:wsHeaders()});
+    $("#bizMemory").innerHTML = (d.memories||[]).map(m=>{
+      const kind = {preference:"偏好",fact:"事实",note:"备注"}[m.kind]||m.kind;
+      return `<div class="biz-row"><div class="grow"><div class="biz-t">${esc(m.key)} <span class="badge kind">${kind}</span></div><div class="biz-d">${esc(m.value)}</div></div><button class="small" data-key="${esc(m.key)}" onclick="bizDeleteMemory(this.dataset.key)">删除</button></div>`;
+    }).join("") || `<div class="empty">暂无记忆。Agent 会在对话中自动写入你的偏好。</div>`;
+  }catch(e){ $("#bizMemory").innerHTML = `<span style="color:var(--danger);font-size:12px">${esc(e.message)}</span>`; }
+}
+
+async function bizSaveMemory(){
+  const key = $("#bizMemKey").value.trim();
+  const value = $("#bizMemValue").value.trim();
+  if(!key || !value){ toast("key 和 value 都要填"); return; }
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/agent/memory`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify({key, value, kind:"preference"})});
+    $("#bizMemKey").value = ""; $("#bizMemValue").value = "";
+    toast("记忆已保存");
+    await loadBizMemory();
+  }catch(e){ toast(e.message); }
+}
+
+async function bizDeleteMemory(key){
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/agent/memory/${encodeURIComponent(key)}`,{method:"DELETE",headers:wsHeaders()});
+    await loadBizMemory();
+  }catch(e){ toast(e.message); }
+}
+
+async function loadBizReadiness(){
+  try{
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/readiness`,{headers:wsHeaders()});
+    $("#bizReadiness").innerHTML = (d.items||[]).map(it=>{
+      const dot = it.ok ? "🟢" : "🟡";
+      return `<div class="biz-row"><div class="grow"><div class="biz-t">${dot} ${esc(it.label)}</div><div class="biz-d">${esc(it.detail)}</div></div><span class="badge ${it.ok?"r0":"r2"}">${it.ok?"已就绪":"待配置"}</span></div>`;
+    }).join("");
+  }catch(e){ $("#bizReadiness").innerHTML = `<span style="color:var(--danger);font-size:12px">${esc(e.message)}</span>`; }
+}
+
+async function loadBizPolicy(){
+  try{
+    const p = await fetchJson(`/workspaces/${state.workspaceId}/commerce`,{headers:wsHeaders()});
+    $("#bizPolicyAuto").checked = !!p.auto_accept_orders;
+    $("#bizPolicyDiscount").value = p.max_discount_percent ?? 0;
+    $("#bizPolicyThreshold").value = p.approval_threshold_amount ?? 0;
+    $("#bizPolicy").innerHTML =
+      `<div class="biz-row"><div class="grow"><div class="biz-t">${p.auto_accept_orders?"🟢 自动接单":"🟡 接单需确认"}</div><div class="biz-d">最大折扣 ${p.max_discount_percent??0}% · 超 ¥${p.approval_threshold_amount??0} 需审批 · ${esc(p.currency)} · 运费 ¥${p.shipping_fee??0} · ${esc(p.payment_method)}</div></div></div>` +
+      (p.terms ? `<div class="biz-d" style="margin-top:6px">${esc(p.terms)}</div>` : "");
+  }catch(e){ $("#bizPolicy").innerHTML = `<span style="color:var(--danger);font-size:12px">${esc(e.message)}</span>`; }
+}
+
+async function bizSavePolicy(){
+  const body = {
+    auto_accept_orders: $("#bizPolicyAuto").checked,
+    max_discount_percent: parseFloat($("#bizPolicyDiscount").value||"0"),
+    approval_threshold_amount: parseFloat($("#bizPolicyThreshold").value||"0"),
+  };
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/commerce`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+    toast("商务政策已保存，Agent 将在此底线内自主交易");
+    await loadBizPolicy();
+  }catch(e){ toast(e.message); }
+}
+
+async function bizAddFeature(){
+  const msg = $("#bizNewFn").value.trim();
+  if(!msg){ toast("先描述要新增的功能"); return; }
+  $("#bizNewFn").value = "";
+  showTab("chat");
+  addMsg("user", replyHtml(msg));
+  const thinking = addMsg("assistant", '<span style="color:var(--muted)">Agent 正在按需求开发…</span>');
+  try{
+    const data = await fetchJson(`/workspaces/${state.workspaceId}/chat`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({message:msg})});
+    thinking.innerHTML = `<div class="who">Agent</div><div class="bubble">${replyHtml(data.reply||"")}</div>`;
+    await Promise.all([loadAreas(), loadBizKpis(), loadApprovals(), loadTodos()]);
+  }catch(e){
+    thinking.innerHTML = `<div class="who">Agent</div><div class="bubble" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+  $("#msgs").scrollTop = $("#msgs").scrollHeight;
+}
+
+async function bizPromoteArea(areaId){
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/layout/${areaId}`,{method:"PATCH",headers:wsHeaders(),body:JSON.stringify({stage:"live"})});
+    toast("已上线，Agent 会自动读取该功能联动");
+    await Promise.all([loadAreas(), loadBizKpis()]);
+  }catch(e){ toast(e.message); }
+}
+
+async function loadBizInventory(){
+  const data = await fetchJson(`/workspaces/${state.workspaceId}/inventory`,{headers:wsHeaders()});
+  bizInventory = data.inventory || [];
+  $("#bizInventory").innerHTML = bizInventory.map(p=>`
+    <div class="biz-row"><div class="grow"><div class="biz-t">${esc(p.name)}</div><div class="biz-d">¥${p.price} · ${esc(p.status)}</div></div><span class="badge ${p.stock>0?"r0":"r3"}">库存 ${p.stock}</span></div>`).join("") || `<div class="empty">暂无商品</div>`;
+  $("#bizStockProduct").innerHTML = bizInventory.map(p=>`<option value="${esc(p.product_id)}">${esc(p.name)}</option>`).join("") || `<option value="">无商品</option>`;
+}
+
+async function loadBizOrders(){
+  const data = await fetchJson(`/workspaces/${state.workspaceId}/orders`,{headers:wsHeaders()});
+  bizOrders = data.orders || [];
+  $("#bizOrders").innerHTML = bizOrders.map(o=>{
+    const items = (o.items||[]).map(i=>`${esc(i.name||"")}×${i.quantity}`).join("，");
+    let actions = "";
+    if(o.status==="PAID") actions += `<button class="small" onclick="bizShip('${o.id}')">发货</button>`;
+    if(o.status==="SHIPPED") actions += `<button class="small" onclick="bizDeliver('${o.id}')">签收</button>`;
+    if(o.status==="CREATED") actions += `<button class="danger small" onclick="bizCancel('${o.id}')">取消</button>`;
+    return `<div class="biz-row"><div class="grow"><div class="biz-t">${esc(o.order_reference||o.id.slice(0,8))}</div><div class="biz-d">${items} · ¥${o.total_amount}</div></div><span class="badge">${esc(o.status)}</span>${actions?`<div style="display:flex;gap:6px;margin-left:6px">${actions}</div>`:""}</div>`;
+  }).join("") || `<div class="empty">暂无订单</div>`;
+}
+
+
+async function loadBizCustomers(){
+  const data = await fetchJson(`/workspaces/${state.workspaceId}/customers`,{headers:wsHeaders()});
+  bizCustomers = data.customers || [];
+  $("#bizCustomers").innerHTML = bizCustomers.map(c=>`
+    <div class="biz-row"><div class="grow"><div class="biz-t">${esc(c.name||"未命名")}</div><div class="biz-d">${esc(c.channel)} · ${esc(c.external_id||"无外部ID")}</div></div><span class="badge">客户</span></div>`).join("") || `<div class="empty">暂无客户</div>`;
+}
+
+
+async function loadBizShipments(){
+  const data = await fetchJson(`/workspaces/${state.workspaceId}/shipments`,{headers:wsHeaders()});
+  bizShipments = data.shipments || [];
+  $("#bizShipments").innerHTML = bizShipments.map(s=>`
+    <div class="biz-row"><div class="grow"><div class="biz-t">${esc(s.carrier||"物流")} ${esc(s.tracking_number)}</div><div class="biz-d">订单 ${esc((s.order_id||"").slice(0,8))}</div></div><span class="badge">${esc(s.status)}</span></div>`).join("") || `<div class="empty">暂无运单</div>`;
+}
+
+async function bizAddStock(){
+  const product_id = $("#bizStockProduct").value;
+  const quantity = parseInt($("#bizStockQty").value||"0",10);
+  if(!product_id || quantity<=0){ toast("请选择商品并填写正数数量"); return; }
+  try{
+    const res = await fetchJson("/gateway/execute",{method:"POST",headers:wsHeaders(),body:JSON.stringify({tool:"add_stock", params:{product_id, quantity}})});
+    if(res.decision==="ALLOWED"){ toast("已入库"); $("#bizStockQty").value=""; await Promise.all([loadBizInventory(), loadAreas()]); }
+    else if(res.decision==="PENDING"){ toast("需要审批"); loadApprovals(); loadTodos(); }
+    else{ toast(res.reason||res.decision); }
+  }catch(e){ toast(e.message); }
+}
+
+async function bizShip(orderId){
+  const carrier = prompt("物流公司（可留空）","") || "";
+  const tracking = prompt("运单号","");
+  if(tracking===null) return;
+  try{
+    const res = await fetchJson("/gateway/execute",{method:"POST",headers:wsHeaders(),body:JSON.stringify({tool:"fulfill_order", params:{order_id:orderId, carrier, tracking_number:tracking}})});
+    if(res.decision==="ALLOWED" && res.result && res.result.error){ toast(res.result.error); }
+    else if(res.decision==="ALLOWED"){ toast("已发货并扣减库存"); }
+    else if(res.decision==="PENDING"){ toast("需要审批"); loadApprovals(); loadTodos(); }
+    else{ toast(res.reason||res.decision); }
+    await loadBiz();
+  }catch(e){ toast(e.message); }
+}
+
+async function bizDeliver(orderId){
+  const shipment = bizShipments.find(s=>s.order_id===orderId);
+  if(!shipment){ toast("未找到运单"); return; }
+  try{
+    const res = await fetchJson("/gateway/execute",{method:"POST",headers:wsHeaders(),body:JSON.stringify({tool:"mark_delivered", params:{shipment_id:shipment.id}})});
+    if(res.decision==="ALLOWED" && res.result && res.result.error){ toast(res.result.error); }
+    else if(res.decision==="ALLOWED"){ toast("已签收"); }
+    else{ toast(res.reason||res.decision); }
+    await loadBiz();
+  }catch(e){ toast(e.message); }
+}
+
+async function bizCancel(orderId){
+  const order = bizOrders.find(o=>o.id===orderId);
+  if(!order){ return; }
+  try{
+    const res = await fetchJson("/gateway/execute",{method:"POST",headers:wsHeaders(),body:JSON.stringify({tool:"cancel_order", params:{channel:order.channel, order_reference:order.order_reference}})});
+    if(res.decision==="ALLOWED" && res.result && res.result.error){ toast(res.result.error); }
+    else if(res.decision==="ALLOWED"){ toast("已取消"); }
+    else if(res.decision==="PENDING"){ toast("需要审批"); loadApprovals(); loadTodos(); }
+    else{ toast(res.reason||res.decision); }
+    await loadBiz();
+  }catch(e){ toast(e.message); }
+}
+
+// ---- settings ----
+function openSetModal(){ $("#setModal").classList.remove("hidden"); }
+function closeSetModal(){ $("#setModal").classList.add("hidden"); }
+
+async function loadSettings(){
+  try{
+    const st = await fetchJson(`/workspaces/${state.workspaceId}/settings`,{headers:wsHeaders()});
+    const m = st.model||{}, c = st.chat||{}, k = st.karma||{}, sm = st.smtp||{};
+    $("#set_model_provider").value = m.provider||"openai_compat";
+    $("#set_model_base").value = m.base_url||"";
+    $("#set_model_name").value = m.model||"";
+    if($("#modelChipLabel")){ $("#modelChipLabel").textContent = m.model || "未配置模型"; }
+    $("#set_model_key").value = "";
+    $("#set_model_key").placeholder = m.api_key ? ("已保存（"+m.api_key+"）") : "sk-...";
+    $("#set_chat_provider").value = c.provider||"telegram";
+    $("#set_chat_enabled").value = c.enabled ? "true" : "false";
+    $("#set_chat_token").value = "";
+    $("#set_chat_token").placeholder = c.token ? ("已保存（"+c.token+"）") : "bot token";
+    $("#set_chat_outbound_url").value = c.outbound_url||"";
+    $("#set_karma_base").value = k.base_url||"";
+    $("#set_karma_agent").value = k.agent_id||"";
+    $("#set_karma_identity").value = k.identity_id||"";
+    $("#set_karma_key").value = "";
+    $("#set_karma_key").placeholder = k.api_key ? ("已保存（"+k.api_key+"）") : "karma key";
+    $("#set_smtp_host").value = sm.host||"";
+    $("#set_smtp_port").value = sm.port||465;
+    $("#set_smtp_user").value = sm.user||"";
+    $("#set_smtp_from").value = sm.from||"";
+    $("#set_smtp_password").value = "";
+    $("#set_smtp_password").placeholder = sm.password ? ("已保存（"+sm.password+"）") : "SMTP 授权码";
+    $("#set_owner_email").value = st.owner_email||"";
+    if(c.provider){ renderWebhookInfo(c); }
+    loadChannelConfig();
+  }catch(e){ /* settings not critical */ }
+}
+
+async function saveModel(){
+  const body = {model:{
+    provider: $("#set_model_provider").value,
+    base_url: $("#set_model_base").value.trim(),
+    model: $("#set_model_name").value.trim(),
+  }};
+  const key = $("#set_model_key").value.trim();
+  if(key){ body.model.api_key = key; }
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/settings`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+    toast("模型已保存，Agent 将使用该模型协调链路");
+    closeSetModal();
+  }catch(e){ toast(e.message); }
+}
+
+async function saveChat(){
+  const body = {chat:{
+    provider: $("#set_chat_provider").value,
+    enabled: $("#set_chat_enabled").value === "true",
+  }};
+  const token = $("#set_chat_token").value.trim();
+  if(token){ body.chat.token = token; }
+  const outboundUrl = $("#set_chat_outbound_url").value.trim();
+  if(outboundUrl){ body.chat.outbound_url = outboundUrl; }
+  try{
+    const st = await fetchJson(`/workspaces/${state.workspaceId}/settings`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+    toast("聊天工具已接入");
+    renderWebhookInfo(st.chat||{});
+  }catch(e){ toast(e.message); }
+}
+
+
+async function saveKarma(){
+  const body = {karma:{
+    base_url: $("#set_karma_base").value.trim(),
+    agent_id: $("#set_karma_agent").value.trim(),
+    identity_id: $("#set_karma_identity").value.trim(),
+  }};
+  const key = $("#set_karma_key").value.trim();
+  if(key){ body.karma.api_key = key; }
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/settings`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+    toast("Karma 收款已保存（Key 加密存储）");
+  }catch(e){ toast(e.message); }
+}
+
+
+const CHANNEL_ENDPOINTS = {
+  taobao: "https://gw.api.taobao.com/router/rest",
+  douyin: "https://openapi-fxg.jinritemai.com/router",
+  sfexpress: "https://bsp-oisp.sf-express.com/bsp-oisp/sfexpressService",
+};
+
+function onSignerChange(){
+  const s = $("#set_channel_signer").value;
+  ["sf_taobao","sf_douyin","sf_sf"].forEach(id=>$("#"+id).classList.add("hidden"));
+  if(s==="taobao") $("#sf_taobao").classList.remove("hidden");
+  if(s==="douyin") $("#sf_douyin").classList.remove("hidden");
+  if(s==="sfexpress") $("#sf_sf").classList.remove("hidden");
+  $("#signer_fields").classList.toggle("hidden", !s);
+  const generic = !s;
+  $("#generic_auth_row").style.display = generic ? "" : "none";
+  $("#generic_auth_header").style.display = generic ? "" : "none";
+  $("#generic_private").style.display = generic ? "" : "none";
+  if(s && !$("#set_channel_url").value.trim()){
+    $("#set_channel_url").value = CHANNEL_ENDPOINTS[s] || "";
+    $("#set_channel_method").value = "POST";
+  }
+}
+
+async function loadChannelConfig(){
+  try{
+    const type = $("#set_channel_type").value;
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/connectors`,{headers:wsHeaders()});
+    const c = (d.connectors||[]).find(x=>x.connector_type===type) || {};
+    const acts = c.actions||{};
+    $("#set_channel_url").value = c.endpoint_url||"";
+    $("#set_channel_method").value = c.method||"GET";
+    $("#set_channel_auth").value = c.auth_type||"none";
+    $("#set_channel_token").value = "";
+    $("#set_channel_token").placeholder = c.configured && (c.auth_type!=="none") ? "已保存（加密）" : "token 或 key";
+    $("#set_channel_auth_header").value = "X-Api-Key";
+    $("#set_channel_private").checked = !!c.allow_private;
+    $("#set_channel_signer").value = c.signer||"";
+    $("#set_tb_app_key").value = c.app_key||"";
+    $("#set_tb_app_secret").value = "";
+    $("#set_tb_app_secret").placeholder = c.has_secret ? "已保存（加密）" : "淘宝 App Secret";
+    $("#set_tb_session").value = "";
+    $("#set_tb_create_method").value = (acts.create_order&&acts.create_order.method)||"";
+    $("#set_tb_read_method").value = (acts.read&&acts.read.method)||"";
+    $("#set_dy_app_id").value = c.app_id||"";
+    $("#set_dy_app_secret").value = "";
+    $("#set_dy_app_secret").placeholder = c.has_secret ? "已保存（加密）" : "抖店 App Secret";
+    $("#set_dy_access_token").value = "";
+    $("#set_dy_sign_method").value = c.sign_method||"hmac-sha256";
+    $("#set_dy_read_method").value = (acts.read&&acts.read.method)||"";
+    $("#set_sf_partner_id").value = c.partner_id||"";
+    $("#set_sf_checkword").value = "";
+    $("#set_sf_checkword").placeholder = c.has_secret ? "已保存（加密）" : "checkword";
+    $("#set_sf_service_code").value = (acts.read&&acts.read.service_code)||c.service_code||"";
+    onSignerChange();
+  }catch(e){ /* non-critical */ }
+}
+
+async function saveChannel(){
+  const type = $("#set_channel_type").value;
+  const allow_private = $("#set_channel_private").checked;
+  const signer = $("#set_channel_signer").value;
+  const url = $("#set_channel_url").value.trim();
+
+  if(signer){
+    const body = {name:type, endpoint_url:url, method:"POST", signer, allow_private, auth:{type:"none"}};
+    const actions = {};
+    if(signer==="taobao"){
+      body.app_key = $("#set_tb_app_key").value.trim();
+      const secret = $("#set_tb_app_secret").value.trim();
+      if(secret) body.app_secret = secret;
+      const session = $("#set_tb_session").value.trim();
+      if(session) body.access_token = session;
+      const cm = $("#set_tb_create_method").value.trim();
+      const rm = $("#set_tb_read_method").value.trim();
+      if(cm) actions.create_order = {method:cm};
+      if(rm) actions.read = {method:rm};
+    }else if(signer==="douyin"){
+      body.app_id = $("#set_dy_app_id").value.trim();
+      const secret = $("#set_dy_app_secret").value.trim();
+      if(secret) body.app_secret = secret;
+      const tok = $("#set_dy_access_token").value.trim();
+      if(tok) body.access_token = tok;
+      body.sign_method = $("#set_dy_sign_method").value;
+      const rm = $("#set_dy_read_method").value.trim();
+      if(rm) actions.read = {method:rm};
+    }else if(signer==="sfexpress"){
+      body.partner_id = $("#set_sf_partner_id").value.trim();
+      const checkword = $("#set_sf_checkword").value.trim();
+      if(checkword) body.checkword = checkword;
+      const sc = $("#set_sf_service_code").value.trim();
+      if(sc) actions.read = {service_code:sc};
+    }
+    if(Object.keys(actions).length) body.actions = actions;
+    try{
+      const res = await fetchJson(`/workspaces/${state.workspaceId}/connectors/${type}`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+      toast("签名渠道已保存：" + res.signer);
+      await loadChannelConfig();
+    }catch(e){ toast(e.message); }
+    return;
+  }
+
+  const method = $("#set_channel_method").value;
+  const authType = $("#set_channel_auth").value;
+  const token = $("#set_channel_token").value.trim();
+  const header = $("#set_channel_auth_header").value.trim() || "X-Api-Key";
+  const body = {name: type, endpoint_url: url, method, allow_private};
+  if(authType === "bearer"){ body.auth = {type:"bearer", token}; }
+  else if(authType === "api_key"){ body.auth = {type:"api_key", token, header}; }
+  else { body.auth = {type:"none"}; }
+  try{
+    const res = await fetchJson(`/workspaces/${state.workspaceId}/connectors/${type}`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+    toast("渠道回执已保存：" + (res.endpoint_url ? "已接真实回执" : "已清空（回退桩）"));
+    await loadChannelConfig();
+  }catch(e){ toast(e.message); }
+}
+
+async function testChannelRead(){
+  const type = $("#set_channel_type").value;
+  const out = $("#channelReadOut");
+  out.textContent = "读取中…";
+  try{
+    const res = await fetchJson("/gateway/execute",{method:"POST",headers:wsHeaders(),body:JSON.stringify({tool:"get_channel_receipt", params:{channel:type}})});
+    if(res.decision!=="ALLOWED"){ out.textContent = res.decision+" "+res.reason; return; }
+    const r = res.result||{};
+    if(r.error){ out.textContent = "读取失败："+r.error; }
+    else if(r.status==="configured"){ out.textContent = r.note || "已配置签名渠道，待补充读单方法"; }
+    else { out.textContent = "读取成功 HTTP "+(r.http_status||"")+"\n"+JSON.stringify(r.body||{}).slice(0,2000); }
+  }catch(e){ out.textContent = "读取失败："+e.message; }
+}
+
+async function saveSmtp(){
+  const body = {smtp:{
+    host: $("#set_smtp_host").value.trim(),
+    port: parseInt($("#set_smtp_port").value||"465",10),
+    user: $("#set_smtp_user").value.trim(),
+    from: $("#set_smtp_from").value.trim(),
+    tls: true,
+  }};
+  const pwd = $("#set_smtp_password").value.trim();
+  if(pwd){ body.smtp.password = pwd; }
+  body.owner_email = $("#set_owner_email").value.trim();
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/settings`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify(body)});
+    toast("邮件配置已保存（密码加密存储）");
+    await loadSettings();
+  }catch(e){ toast(e.message); }
+}
+
+async function testEmail(){
+  try{
+    const r = await fetchJson(`/workspaces/${state.workspaceId}/settings/test-email`,{method:"POST",headers:wsHeaders()});
+    if(r.sent){ toast("测试邮件已发送，请查收"); }
+    else{ toast("未发送："+(r.note||r.error||"未知原因")); }
+  }catch(e){ toast(e.message); }
+}
+
+
+function renderWebhookInfo(c){
+  if(!c || !c.enabled){ $("#webhookInfo").innerHTML = "已停用接入。"; return; }
+  const origin = location.origin || "http://127.0.0.1:8000";
+  const provider = (c.provider || "telegram").toLowerCase();
+  let html = "接入点（平台侧直接填这里）：<br>";
+  if(provider === "telegram"){
+    html += `<code>POST ${origin}/webhooks/telegram/你的BotToken</code><br>说明：Telegram 用 setWebhook 指向此地址即可，bot 收到消息会自动回复/报价/接单。`;
+  } else {
+    html += `<code>POST ${origin}/webhooks/${provider}?token=你的token</code><br>说明：微信/通用 webhook 把平台消息转发到此地址，agent 会自动回复。`;
+  }
+  html += `<br><br>通用接口（任意平台自建转发）：<code>POST ${origin}/chat/inbound</code><br>Body：<code>{&quot;token&quot;:&quot;你的token&quot;,&quot;message&quot;:&quot;用户指令&quot;,&quot;external_id&quot;:&quot;客户id&quot;,&quot;channel&quot;:&quot;telegram&quot;}</code>`;
+  $("#webhookInfo").innerHTML = html;
+}
+
+// ---- function modal ----
+function openFnModal(){ $("#modal").classList.remove("hidden"); }
+function closeFnModal(){ $("#modal").classList.add("hidden"); }
+async function createFn(){
+  const kind = $("#fn_kind").value, authType = $("#fn_auth").value;
+  const statusPath = $("#fn_status").value.trim(), refPath = $("#fn_ref").value.trim();
+  const token = $("#fn_token").value.trim();
+  const auth = {type: authType};
+  if(authType==="bearer" || authType==="api_key"){ if(/^[A-Z][A-Z0-9_]*$/.test(token)){ auth.env = token; } else { auth.token = token; } }
+  if(authType==="basic"){ auth.username = token; }
+  const body = { name: $("#fn_name").value.trim(), description: $("#fn_desc").value.trim(), kind, category: $("#fn_category").value,
+    endpoint_url: $("#fn_url").value.trim(), method: $("#fn_method").value, auth,
+    verification: {type: statusPath?"http":"none", status_path: statusPath, reference_path: refPath} };
+  try{ await fetchJson(`/workspaces/${state.workspaceId}/functions`,{method:"POST",headers:wsHeaders(),body:JSON.stringify(body)});
+    closeFnModal(); await loadCatalog(); toast("功能已创建"); }catch(e){ toast(e.message); }
+}
+
+// ---- product modal ----
+let prodAreaId = null;
+let prodEditId = null;
+function openProdModal(areaId, productId){
+  prodAreaId = areaId;
+  prodEditId = productId || null;
+  $("#prodModalTitle").textContent = productId ? "编辑产品" : "添加产品";
+  const p = productId ? products.find(x=>x.id===productId) : null;
+  $("#prod_name").value = p ? (p.name||"") : "";
+  $("#prod_category").value = p ? (p.category||"") : "";
+  $("#prod_price").value = p ? (p.price ?? "") : "";
+  $("#prod_photo").value = p ? (p.photo_url||"") : "";
+  $("#prod_specs").value = p && p.specs ? JSON.stringify(p.specs) : "";
+  $("#prod_detail").value = p ? (p.detail||"") : "";
+  $("#prod_quals").value = p && Array.isArray(p.qualifications) ? p.qualifications.join(", ") : "";
+  $("#prodModal").classList.remove("hidden");
+}
+function closeProdModal(){ $("#prodModal").classList.add("hidden"); }
+async function saveProdModal(){
+  const name = $("#prod_name").value.trim();
+  if(!name){ toast("请填写产品名称"); return; }
+  const price = parseFloat($("#prod_price").value || "0");
+  if(isNaN(price)){ toast("单价必须是数字"); return; }
+  let specs = {};
+  const specsRaw = $("#prod_specs").value.trim();
+  if(specsRaw){ try{ specs = JSON.parse(specsRaw); }catch(e){ toast("规格不是合法 JSON，已按空处理"); specs = {}; } }
+  const qualifications = $("#prod_quals").value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  const payload = {
+    name: name,
+    category: $("#prod_category").value.trim(),
+    price: price,
+    photo_url: $("#prod_photo").value.trim(),
+    specs: specs,
+    detail: $("#prod_detail").value.trim(),
+    qualifications: qualifications,
+  };
+  try{
+    if(prodEditId){
+      payload.layout_area_id = prodAreaId;
+      await fetchJson(`/workspaces/${state.workspaceId}/products/${prodEditId}`,{method:"PATCH",headers:wsHeaders(),body:JSON.stringify(payload)});
+    }else{
+      const created = await fetchJson(`/workspaces/${state.workspaceId}/products`,{method:"POST",headers:wsHeaders(),body:JSON.stringify(payload)});
+      await fetchJson(`/workspaces/${state.workspaceId}/products/${created.id}`,{method:"PATCH",headers:wsHeaders(),body:JSON.stringify({layout_area_id: prodAreaId})});
+    }
+    closeProdModal();
+    await loadAreas();
+    toast(prodEditId ? "产品已更新" : "产品已添加并归类到功能区");
+  }catch(e){ toast(e.message); }
+}
+
+// ---- run function modal ----
+let runFnId = null;
+function openRunFnModal(fnId, displayName){
+  runFnId = fnId;
+  const fn = fnOf(fnId);
+  $("#runFnTitle").textContent = "运行 · " + (displayName || (fn && fn.display_name) || "");
+  $("#runFnDesc").textContent = (fn && fn.acceptance) ? "验收标准：" + fn.acceptance : "";
+  $("#runFnParams").value = "";
+  $("#runFnResult").classList.add("hidden");
+  $("#runFnModal").classList.remove("hidden");
+}
+function closeRunFnModal(){ $("#runFnModal").classList.add("hidden"); }
+async function runFn(){
+  let params = {};
+  const raw = $("#runFnParams").value.trim();
+  if(raw){ try{ params = JSON.parse(raw); }catch(e){ toast("参数不是合法 JSON"); return; } }
+  const btn = $("#runFnBtn");
+  btn.disabled = true; btn.textContent = "运行中…";
+  try{
+    const res = await fetchJson(`/gateway/execute`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({tool:"run_function",params:{function_id:runFnId,params}})});
+    const box = $("#runFnResult");
+    box.classList.remove("hidden");
+    const inner = res.result && res.result.result;
+    let html = `<div class="t">decision: ${esc(res.decision)}</div>`;
+    if(res.approval_id){ html += `<div style="font-size:11px;color:#d9a514">审批单 #${esc(res.approval_id)}：请在右侧批准后重试</div>`; }
+    if(inner && inner.reply){ html += `<div style="margin:6px 0;font-size:13px">${esc(inner.reply)}</div>`; }
+    if(inner && inner.clarify){ html += `<div style="margin:6px 0;font-size:13px;color:var(--muted)">需要补充：${esc(inner.clarify)}</div>`; }
+    if(inner && Array.isArray(inner.steps) && inner.steps.length){ html += `<div class="t" style="margin-top:8px">执行步骤</div>` + inner.steps.map(s=>`<div style="font-size:12px">- ${esc(s.tool)}：${esc(s.decision)}</div>`).join(""); }
+    html += `<pre style="white-space:pre-wrap;word-break:break-all;margin:8px 0 0;font-size:12px">${esc(JSON.stringify(inner !== undefined ? inner : res.result, null, 2))}</pre>`;
+    box.innerHTML = html;
+  }catch(e){
+    const box = $("#runFnResult");
+    box.classList.remove("hidden");
+    box.innerHTML = `<div class="t" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }finally{
+    btn.disabled = false; btn.textContent = "运行";
+  }
+}
+
+// ---- data file upload ----
+async function uploadFile(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  try{
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const chunk = 0x8000;
+    for(let i=0;i<bytes.length;i+=chunk){ binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk)); }
+    const content_base64 = btoa(binary);
+    await fetchJson(`/workspaces/${state.workspaceId}/files`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({name:file.name, content_base64})});
+    toast("已上传："+file.name+"，Agent 可用 read_data 读取");
+  }catch(e){ toast("上传失败："+e.message); }
+  input.value = "";
+}
+
+// ---- skills marketplace ----
+async function loadSkills(){
+  try{
+    const data = await fetchJson(`/skills`,{headers:wsHeaders()});
+    const skills = data.skills || [];
+    $("#skillsArea").innerHTML = skills.map(s=>`
+      <div class="skill-item ${s.installed?"installed":""}">
+        <div class="skill-icon">${esc(s.icon)}</div>
+        <div class="skill-body">
+          <div class="skill-t">${esc(s.title)} ${s.verified?`<span class="badge r0">市场验证</span>`:""}</div>
+          <div class="skill-d" title="${esc(s.description)}">${esc(s.description)}</div>
+        </div>
+        <button class="small ${s.installed?"danger":"ghost"}" onclick="toggleSkill('${esc(s.id)}', ${s.installed})">${s.installed?"卸载":"安装"}</button>
+      </div>`).join("") || `<div class="empty">暂无技能</div>`;
+  }catch(e){ $("#skillsArea").innerHTML = `<div style="color:var(--danger);font-size:12px">${esc(e.message)}</div>`; }
+}
+async function toggleSkill(id, installed){
+  try{
+    await fetchJson(`/workspaces/${state.workspaceId}/skills/${id}/${installed?"uninstall":"install"}`,{method:"POST",headers:wsHeaders()});
+    toast(installed?"已卸载":"已安装");
+    await Promise.all([loadSkills(), loadAreas(), loadCatalog()]);
+  }catch(e){ toast(e.message); }
+}
+
+// ---- module marketplace ----
+async function loadMarket(){
+  try{
+    const data = await fetchJson(`/marketplace`,{headers:wsHeaders()});
+    const modules = data.modules || [];
+    $("#marketArea").innerHTML = modules.map(m=>`
+      <div class="skill-item">
+        <div class="skill-icon">🧩</div>
+        <div class="skill-body">
+          <div class="skill-t">${esc(m.name)} ${m.risk_level&&m.risk_level!=="R0"?`<span class="badge r${String(m.risk_level).replace("R","").toLowerCase()}">${esc(m.risk_level)}</span>`:""}</div>
+          <div class="skill-d" title="${esc(m.description||"")}">${esc(m.category||"general")} · ${esc(m.kind)} · ${esc(m.description||"无描述")}</div>
+        </div>
+        <button class="small ghost" onclick="installMarket('${esc(m.id)}','${esc(m.name)}')">安装</button>
+      </div>`).join("") || `<div class="empty">暂无已发布模块</div>`;
+  }catch(e){ $("#marketArea").innerHTML = `<div style="color:var(--danger);font-size:12px">${esc(e.message)}</div>`; }
+}
+async function installMarket(id, name){
+  try{
+    await fetchJson(`/marketplace/${id}/install`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({name})});
+    toast("已安装模块："+name);
+    await Promise.all([loadCatalog(), loadAreas()]);
+  }catch(e){ toast(e.message); }
+}
+
+// ---- composer "+" menu ----
+function togglePlusMenu(){ $("#plusMenu").classList.toggle("hidden"); }
+function plusAction(kind){
+  $("#plusMenu").classList.add("hidden");
+  if(kind==="file"){ $("#fileInput").click(); }
+  else if(kind==="image"){ $("#imageInput").click(); }
+  else if(kind==="product"){ openProdModal(null); }
+  else if(kind==="function"){ openFnModal(); }
+  else if(kind==="connector"){ toast("渠道已预装：Karma 收款、独立站、社交网店、外卖、电商平台、外贸、物流、跨境电商，可在设置中配置回执网址"); openSetModal(); }
+  else if(kind==="settings"){ openSetModal(); }
+}
+document.addEventListener("click", e=>{
+  const menu = $("#plusMenu");
+  if(menu && !menu.classList.contains("hidden") && !e.target.closest(".plus-wrap")){ menu.classList.add("hidden"); }
+});
+
+// ---- voice input (M12) ----
+let voiceRec=null, voiceOn=false;
+function toggleVoice(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast("当前浏览器不支持语音识别，请使用 Chrome/Edge"); return; }
+  const mic = $("#mic");
+  if(voiceOn){ try{ voiceRec.stop(); }catch(_){} return; }
+  voiceRec = new SR();
+  voiceRec.lang = "zh-CN";
+  voiceRec.interimResults = false;
+  voiceRec.maxAlternatives = 1;
+  voiceRec.onresult = e=>{
+    const text = (e.results[0] && e.results[0][0] && e.results[0][0].transcript) || "";
+    if(!text) return;
+    const el = $("#input");
+    el.value = el.value ? el.value + " " + text : text;
+    autosizeInput();
+  };
+  voiceRec.onend = ()=>{ voiceOn=false; if(mic) mic.textContent="🎤"; };
+  voiceRec.onerror = ()=>{ voiceOn=false; if(mic) mic.textContent="🎤"; };
+  try{ voiceRec.start(); voiceOn=true; if(mic) mic.textContent="🔴"; }
+  catch(_){ toast("无法启动语音识别"); }
+}
+
+// ---- composer auto-grow / enter ----
+const _inputEl = $("#input");
+function autosizeInput(){
+  _inputEl.style.height = "auto";
+  _inputEl.style.height = Math.min(_inputEl.scrollHeight, 220) + "px";
+}
+_inputEl.addEventListener("input", autosizeInput);
+_inputEl.addEventListener("keydown", e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendChat(); }
+});
+
+// ---- neural console (main brain + nerve panels, schema-driven) ----
+const NEURAL_PANELS = [
+  {id:"customers", icon:"👤", title:"客户资料", ep:"customers",
+    count:d=>(d.customers||[]).length,
+    render:d=>(d.customers||[]).slice(0,8).map(c=>`<div class="row"><span>${esc(c.name||c.external_id||"客户")}</span><span>${esc((c.profile&&(c.profile.phone||c.profile.email))||"")}</span></div>`).join("")||"（空）"},
+  {id:"inbox", icon:"✉️", title:"待确认/回复", ep:"dashboard",
+    count:d=>{const t=d.todos||{};return (t.must_confirm||0)+(t.needs_reply||0);},
+    render:d=>{const t=d.todos||{};return `<div class="row"><span>必须确认</span><b>${t.must_confirm||0}</b></div><div class="row"><span>需回复</span><b>${t.needs_reply||0}</b></div><div class="row"><span>仅通知</span><b>${t.info||0}</b></div>`;}},
+  {id:"products", icon:"📦", title:"产品", ep:"products",
+    count:d=>(d.products||[]).length,
+    render:d=>(d.products||[]).slice(0,8).map(p=>`<div class="row"><b>${esc(p.name)}</b><span>¥${p.price}</span></div>`).join("")||"（空）"},
+  {id:"inventory", icon:"🧮", title:"库存", ep:"inventory",
+    count:d=>(d.inventory||[]).length,
+    render:d=>(d.inventory||[]).slice(0,8).map(i=>`<div class="row"><span>${esc(i.name)}</span><b>${i.stock}</b></div>`).join("")||"（空）"},
+  {id:"orders", icon:"🧾", title:"订单", ep:"orders",
+    count:d=>(d.orders||[]).length,
+    render:d=>(d.orders||[]).slice(0,8).map(o=>`<div class="row"><span>${esc(o.status)}</span><b>¥${o.total_amount}</b></div>`).join("")||"（空）"},
+  {id:"areas", icon:"🧩", title:"功能区", ep:"layout",
+    count:d=>(d.areas||[]).filter(a=>!a.parent_id).length,
+    render:d=>(d.areas||[]).filter(a=>!a.parent_id).slice(0,8).map(a=>`<div class="row"><span>${esc(a.name)}</span><span>${a.stage==="test"?"测试":"已上线"}</span></div>`).join("")||"（空）"},
+];
+const NP_SOURCE_SPECS = {
+  customers:{count:d=>(d.customers||[]).length, render:d=>(d.customers||[]).slice(0,8).map(c=>`<div class="row"><span>${esc(c.name||c.external_id||"客户")}</span><span>${esc((c.profile&&(c.profile.phone||c.profile.email))||"")}</span></div>`).join("")||"（空）"},
+  products:{count:d=>(d.products||[]).length, render:d=>(d.products||[]).slice(0,8).map(p=>`<div class="row"><b>${esc(p.name)}</b><span>¥${p.price}</span></div>`).join("")||"（空）"},
+  inventory:{count:d=>(d.inventory||[]).length, render:d=>(d.inventory||[]).slice(0,8).map(i=>`<div class="row"><span>${esc(i.name)}</span><b>${i.stock}</b></div>`).join("")||"（空）"},
+  orders:{count:d=>(d.orders||[]).length, render:d=>(d.orders||[]).slice(0,8).map(o=>`<div class="row"><span>${esc(o.status)}</span><b>¥${o.total_amount}</b></div>`).join("")||"（空）"},
+  shipments:{count:d=>(d.shipments||[]).length, render:d=>(d.shipments||[]).slice(0,8).map(s=>`<div class="row"><span>${esc(s.carrier||"物流")}</span><span>${esc(s.tracking_number||"")}</span></div>`).join("")||"（空）"},
+  layout:{count:d=>(d.areas||[]).filter(a=>!a.parent_id).length, render:d=>(d.areas||[]).filter(a=>!a.parent_id).slice(0,8).map(a=>`<div class="row"><span>${esc(a.name)}</span><span>${a.stage==="test"?"测试":"已上线"}</span></div>`).join("")||"（空）"},
+  todos:{count:d=>(d.todos||[]).length, render:d=>(d.todos||[]).slice(0,8).map(x=>`<div class="row"><span>${esc(x.title||x.kind||"待办")}</span><span>${esc(x.status||"")}</span></div>`).join("")||"（空）"},
+  approvals:{count:d=>(d.approvals||[]).filter(a=>a.status==="PENDING").length, render:d=>(d.approvals||[]).slice(0,8).map(a=>`<div class="row"><span>${esc(a.action)}</span><span>${esc(a.status)}</span></div>`).join("")||"（空）"},
+  events:{ep:"brain/events", count:d=>(d.events||[]).length, render:d=>(d.events||[]).slice(0,8).map(e=>`<div class="row"><span>${esc(e.action)}</span><span>${esc(e.decision)}</span></div>`).join("")||"（空）"},
+};
+let neuralOpen=false, neuralTimer=null, neuralDrag=null, neuralDanger=false, neuralBuilt=false, neuralStreamCtl=null;
+let neuralRegistry = [];
+let neuralCustom = [];
+let neuralFeed = [];
+let neuralPos = {};
+const NEURAL_LS = "krama.neural.layout.v1";
+const NEURAL_CUSTOM_LS = "krama.neural.custom.v1";
+
+function neuralLoadLayout(){ return neuralPos || {}; }
+async function neuralFetchLayout(){
+  try{ const d = await fetchJson(`/workspaces/${state.workspaceId}/neural/layout`,{headers:wsHeaders()}); neuralPos = d.positions||{}; }
+  catch(e){ try{ neuralPos = JSON.parse(localStorage.getItem(NEURAL_LS)||"{}"); }catch(_){ neuralPos = {}; } }
+}
+async function neuralSaveLayout(pos){
+  neuralPos = pos || {};
+  try{ localStorage.setItem(NEURAL_LS, JSON.stringify(neuralPos)); }catch(_){}
+  try{ await fetchJson(`/workspaces/${state.workspaceId}/neural/layout`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify({positions:neuralPos})}); }catch(_){}
+}
+async function neuralLoadCustom(){
+  try{
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/panels`,{headers:wsHeaders()});
+    return (d.panels||[]).map(p=>({id:p.panel_id, type:p.type, title:p.title, data_source:p.data_source, version:p.version, status:p.status}));
+  }catch(e){ try{ return JSON.parse(localStorage.getItem(NEURAL_CUSTOM_LS)||"[]"); }catch(_){ return []; } }
+}
+async function neuralSaveCustom(){
+  try{ localStorage.setItem(NEURAL_CUSTOM_LS, JSON.stringify(neuralCustom)); }catch(_){}
+}
+async function neuralLoadRegistry(){ try{ const d = await fetchJson("/panels/registry"); neuralRegistry = d.components||[]; }catch(e){ neuralRegistry=[]; } }
+
+async function toggleNeural(){
+  neuralOpen = !neuralOpen;
+  const el = $("#neural");
+  if(neuralOpen){
+    el.classList.add("open");
+    await neuralLoadRegistry();
+    await neuralFetchLayout();
+    neuralCustom = (await neuralLoadCustom()).filter(neuralValidCustom);
+    neuralBuild();
+    neuralBuildCustom();
+    neuralPoll();
+    neuralOpenStream();
+    neuralTimer = setInterval(neuralPoll, 3000);
+  } else { el.classList.remove("open"); if(neuralTimer){ clearInterval(neuralTimer); neuralTimer=null; } neuralCloseStream(); }
+}
+function neuralAllIds(){ return NEURAL_PANELS.map(p=>p.id).concat(neuralCustom.map(p=>p.id)); }
+function neuralBuild(){
+  const stage = $("#neuralStage");
+  if(neuralBuilt){ neuralDraw(); return; }
+  const pos = neuralLoadLayout();
+  const w = stage.clientWidth||window.innerWidth, h = stage.clientHeight||window.innerHeight;
+  const cx = w/2, cy = h/2;
+  NEURAL_PANELS.forEach((p, idx)=>{
+    const angle = (idx / NEURAL_PANELS.length) * Math.PI*2 - Math.PI/2;
+    const r = Math.min(w,h)*0.32;
+    const def = {x: cx + Math.cos(angle)*r - 124, y: cy + Math.sin(angle)*r - 63};
+    const saved = pos[p.id] || def;
+    const el = document.createElement("div");
+    el.className = "npanel"; el.id = "np-"+p.id;
+    el.style.left = saved.x+"px"; el.style.top = saved.y+"px";
+    el.innerHTML = `<div class="np-head"><span class="np-ic">${p.icon}</span><span>${esc(p.title)}</span><span class="np-count" id="npcount-${p.id}"></span></div><div class="np-body" id="npbody-${p.id}">…</div>`;
+    stage.appendChild(el);
+    el.querySelector(".np-head").addEventListener("pointerdown", e=>{ neuralDragStart(e, p.id); });
+  });
+  neuralBuilt = true;
+  neuralDraw();
+}
+function neuralBuildCustom(){
+  const stage = $("#neuralStage"); if(!stage) return;
+  const pos = neuralLoadLayout();
+  neuralCustom.forEach((p, idx)=>{
+    if(document.getElementById("np-"+p.id)) return;
+    const saved = pos[p.id];
+    const el = document.createElement("div");
+    el.className = "npanel"; el.id = "np-"+p.id;
+    el.style.left = (saved ? saved.x : 70 + idx*14) + "px";
+    el.style.top = (saved ? saved.y : 70 + idx*14) + "px";
+    el.innerHTML = `<div class="np-head"><span class="np-ic">🧩</span><span>${esc(p.title)}</span><span class="np-count" id="npcount-${p.id}"></span></div><div class="np-body" id="npbody-${p.id}">…</div>`;
+    stage.appendChild(el);
+    el.querySelector(".np-head").addEventListener("pointerdown", e=>{ neuralDragStart(e, p.id); });
+  });
+  neuralDraw();
+}
+function neuralDragStart(e, id){
+  const panel = document.getElementById("np-"+id);
+  const rect = panel.getBoundingClientRect();
+  neuralDrag = {id, offX: e.clientX-rect.left, offY: e.clientY-rect.top};
+  panel.classList.add("active");
+  try{ panel.setPointerCapture(e.pointerId); }catch(err){}
+}
+document.addEventListener("pointermove", e=>{
+  if(!neuralDrag) return;
+  const stage = $("#neuralStage"); if(!stage) return;
+  const panel = document.getElementById("np-"+neuralDrag.id); if(!panel) return;
+  const srect = stage.getBoundingClientRect();
+  let x = e.clientX - srect.left - neuralDrag.offX;
+  let y = e.clientY - srect.top - neuralDrag.offY;
+  x = Math.max(8, Math.min(x, srect.width - panel.offsetWidth - 8));
+  y = Math.max(8, Math.min(y, srect.height - panel.offsetHeight - 8));
+  panel.style.left = x+"px"; panel.style.top = y+"px";
+  neuralDraw();
+});
+document.addEventListener("pointerup", e=>{
+  if(!neuralDrag) return;
+  const panel = document.getElementById("np-"+neuralDrag.id);
+  if(panel) panel.classList.remove("active");
+  const pos = neuralLoadLayout();
+  pos[neuralDrag.id] = {x: parseInt(panel.style.left)||0, y: parseInt(panel.style.top)||0};
+  neuralSaveLayout(pos);
+  neuralDrag = null;
+});
+function neuralBrainCenter(){
+  const stage = $("#neuralStage"); if(!stage) return {x:0,y:0};
+  return {x: stage.clientWidth/2, y: stage.clientHeight/2};
+}
+function neuralDraw(){
+  const svg = $("#neuralSvg"); const stage = $("#neuralStage");
+  if(!svg || !stage) return;
+  svg.setAttribute("viewBox", `0 0 ${stage.clientWidth} ${stage.clientHeight}`);
+  const b = neuralBrainCenter();
+  let lines = "";
+  neuralAllIds().forEach(id=>{
+    const el = document.getElementById("np-"+id); if(!el) return;
+    const x = el.offsetLeft + el.offsetWidth/2;
+    const y = el.offsetTop + el.offsetHeight/2;
+    lines += `<line class="nline ${neuralDanger?"danger":""}" x1="${b.x}" y1="${b.y}" x2="${x}" y2="${y}"/>`;
+  });
+  svg.innerHTML = lines;
+}
+async function neuralPoll(){
+  try{
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/brain/events?limit=20`,{headers:wsHeaders()});
+    neuralFeed = d.events||[];
+    neuralDanger = neuralFeed.some(e=>e.decision==="DENIED");
+    neuralRenderFeed();
+    neuralDraw();
+  }catch(e){ /* offline */ }
+  neuralRefreshPanels();
+}
+function neuralRenderFeed(){
+  const feed = $("#brainFeed"); if(!feed) return;
+  const events = neuralFeed || [];
+  if(!events.length){ feed.innerHTML = `<span style="color:var(--muted)">暂无事件 · 任何操作都会经过主脑</span>`; return; }
+  feed.innerHTML = events.slice(0,14).map(e=>{
+    const dec = e.decision || "ALLOWED";
+    return `<div class="nev ${esc(dec)}"><span class="dot"></span><span class="a">${esc(e.action)}</span><span class="r">${esc(dec)}${e.reason? " · "+esc(e.reason):""}</span></div>`;
+  }).join("");
+}
+function neuralOpenStream(){
+  if(neuralStreamCtl) neuralStreamCtl.abort();
+  neuralStreamCtl = new AbortController();
+  (async ()=>{
+    try{
+      const res = await fetch(`/workspaces/${state.workspaceId}/brain/stream?interval=0.8`,{headers:wsHeaders(), signal:neuralStreamCtl.signal});
+      if(!res.ok || !res.body) return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while(true){
+        const {done, value} = await reader.read();
+        if(done) break;
+        buf += decoder.decode(value, {stream:true});
+        let idx;
+        while((idx = buf.indexOf("\n\n")) >= 0){
+          const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
+          let event=null, data=null;
+          for(const line of chunk.split("\n")){
+            if(line.startsWith("event: ")) event = line.slice(7);
+            else if(line.startsWith("data: ")){ try{ data = JSON.parse(line.slice(6)); }catch(_){} }
+          }
+          if(event && data) neuralHandleStreamEvent(event, data);
+        }
+      }
+    }catch(e){ /* aborted or offline */ }
+  })();
+}
+function neuralCloseStream(){ if(neuralStreamCtl){ neuralStreamCtl.abort(); neuralStreamCtl=null; } }
+function neuralHandleStreamEvent(event, data){
+  if(event==="snapshot"){ neuralFeed = data.events||[]; }
+  else if(event==="event"){ neuralFeed = [data, ...(neuralFeed||[]).filter(e=>e.id!==data.id)].slice(0,60); }
+  else return;
+  neuralDanger = neuralFeed.some(e=>e.decision==="DENIED");
+  neuralRenderFeed();
+  neuralDraw();
+}
+async function neuralRefreshPanels(){
+  for(const p of NEURAL_PANELS){
+    const body = document.getElementById("npbody-"+p.id);
+    const count = document.getElementById("npcount-"+p.id);
+    if(!body) continue;
+    try{
+      const d = await fetchJson(`/workspaces/${state.workspaceId}/${p.ep}`,{headers:wsHeaders()});
+      body.innerHTML = p.render(d);
+      if(count) count.textContent = p.count(d);
+    }catch(e){ body.innerHTML = `<span style="color:var(--danger)">读取失败</span>`; if(count) count.textContent="—"; }
+  }
+  for(const p of neuralCustom){
+    const body = document.getElementById("npbody-"+p.id);
+    const count = document.getElementById("npcount-"+p.id);
+    if(!body) continue;
+    try{
+      const ep = p.data_source || "dashboard";
+      const d = await fetchJson(`/workspaces/${state.workspaceId}/${ep}`,{headers:wsHeaders()});
+      body.innerHTML = neuralRenderCustomBody(p, d);
+      if(count) count.textContent = ((d && d[p.data_source]) || []).length || "—";
+    }catch(e){ body.innerHTML = `<span style="color:var(--danger)">读取失败</span>`; if(count) count.textContent="—"; }
+  }
+}
+function neuralSetHints(hints){
+  const el = $("#brainHints"); if(!el) return;
+  if(!hints || !hints.length){ el.classList.add("hidden"); el.innerHTML=""; return; }
+  el.classList.remove("hidden");
+  el.innerHTML = hints.map(h=>`<div class="nhint ${h.severity==="danger"?"danger":""}"><span class="ic">${h.severity==="danger"?"⚠️":"💡"}</span><span>${esc(h.message)}</span></div>`).join("");
+}
+function neuralValidCustom(p){
+  const spec = neuralRegistry.find(c=>c.type===p.type);
+  if(!spec) return false;
+  if(!(p.title || "").trim()) return false;
+  const sources = spec.allowed_data_sources||[];
+  if(sources.length && !sources.includes(p.data_source)) return false;
+  return true;
+}
+function neuralRenderCustomBody(p, d){
+  const rows = (key, n=8)=>{
+    const list = (d && d[key]) || [];
+    if(!list.length) return "（空）";
+    const cols = Object.keys(list[0]).slice(0, 3);
+    return `<table class="nptbl"><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${list.slice(0,n).map(r=>`<tr>${cols.map(c=>`<td>${esc(typeof r[c]==="object"?JSON.stringify(r[c]):r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  };
+  const list = d ? ((d[p.data_source]) || []) : [];
+  switch(p.type){
+    case "metric_card": return `<div class="metric">${list.length||0}</div><div class="metric-cap">${esc(p.data_source||"")}</div>`;
+    case "data_table": case "data_list": return rows(p.data_source);
+    case "trend_chart": {
+      const vals = list.slice(0,8).map(r=>Number(r.total_amount||r.price||r.stock||0));
+      const max = Math.max(1, ...vals);
+      return vals.length ? `<div class="bars">${vals.map(v=>`<div class="bar" style="height:${Math.round(v/max*100)}%"></div>`).join("")}</div>` : "（无数据）";
+    }
+    case "pie_chart": {
+      const total = list.reduce((a,r)=>a+Number(r.total_amount||r.price||r.stock||0),0)||1;
+      const slices = list.slice(0,6);
+      let acc=0, stops=[];
+      for(const r of slices){ const share = Number(r.total_amount||r.price||r.stock||0)/total; acc+=share; stops.push(acc); }
+      const grad = stops.map((stop,i)=>`rgba(47,155,255,${0.35+i*0.1}) ${Math.round((i?slices[i-1].__prev||0:0)*100)}% ${Math.round(stop*100)}%`).join(",");
+      return `<div class="pie" style="background:conic-gradient(${grad||"#2d3650"})"></div><div class="pie-cap">${slices.length} 类</div>`;
+    }
+    case "task_list": return rows("todos");
+    case "approval_card": { const pend = (d&&d.approvals||[]).filter(a=>a.status==="PENDING"); return `<div class="row"><span>待审批</span><b>${pend.length}</b></div>`; }
+    case "notification_list": return rows("events");
+    case "log_viewer": return rows("events");
+    case "manager_status": return rows("agents");
+    case "filter": return `<div class="row"><span>筛选器</span><span>就绪</span></div>`;
+    case "search_box": return `<input class="npsearch" placeholder="搜索…" oninput="neuralSearch(this.value,'${esc(p.id)}')">`;
+    case "form": return `<div class="row"><span>表单（写入需网关授权）</span><span>—</span></div>`;
+    case "calendar": return rows("todos");
+    case "report_reader": return rows("events");
+    default: return rows(p.data_source);
+  }
+}
+function neuralSearch(q, id){
+  const body = document.getElementById("npbody-"+id);
+  if(!body) return;
+  const list = neuralFeed || [];
+  const hit = list.filter(e=>String(e.action||"").includes(q)||String(e.decision||"").includes(q)).slice(0,8);
+  body.innerHTML = hit.length ? hit.map(e=>`<div class="row"><span>${esc(e.action)}</span><span>${esc(e.decision)}</span></div>`).join("") : "（无匹配）";
+}
+function neuralOpenPanelModal(){
+  if(!neuralRegistry.length){ neuralLoadRegistry().then(()=>neuralFillPanelModal()); }
+  else neuralFillPanelModal();
+}
+function neuralFillPanelModal(){
+  const sel = $("#npType");
+  sel.innerHTML = neuralRegistry.map(c=>`<option value="${esc(c.type)}">${esc(c.type)}${c.required_fields.length?"（需 "+c.required_fields.join("、")+"）":""}</option>`).join("");
+  sel.onchange = neuralTypeChanged;
+  neuralTypeChanged();
+  $("#npErrors").textContent = "";
+  $("#npTitle").value = "";
+  $("#neuralPanelModal").classList.remove("hidden");
+  $("#neuralPanelModal").style.display = "flex";
+}
+function neuralClosePanelModal(){
+  $("#neuralPanelModal").classList.add("hidden");
+  $("#neuralPanelModal").style.display = "none";
+}
+function neuralTypeChanged(){
+  const type = $("#npType").value;
+  const spec = neuralRegistry.find(c=>c.type===type);
+  const row = $("#npSourceRow");
+  if(spec && (spec.allowed_data_sources||[]).length){
+    row.classList.remove("hidden");
+    $("#npSource").innerHTML = (spec.allowed_data_sources||[]).map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  } else { row.classList.add("hidden"); }
+}
+async function neuralAddPanel(){
+  const type = $("#npType").value;
+  const title = $("#npTitle").value.trim();
+  const spec = neuralRegistry.find(c=>c.type===type);
+  const data_source = (spec && (spec.allowed_data_sources||[]).length) ? $("#npSource").value : "";
+  const errEl = $("#npErrors");
+  errEl.textContent = "";
+  try{
+    const r = await fetchJson(`/workspaces/${state.workspaceId}/panels`,{method:"POST",headers:wsHeaders(),body:JSON.stringify({type, title, data_source, status:"live", version:1})});
+    const p = r.panel;
+    neuralCustom.push({id:p.panel_id, type:p.type, title:p.title, data_source:p.data_source, version:p.version, status:p.status});
+    await neuralSaveCustom();
+    neuralClosePanelModal();
+    neuralBuildCustom();
+    neuralRefreshPanels();
+    toast("面板已通过校验并保存到服务端："+title);
+  }catch(e){ errEl.textContent = e.message; }
+}
+async function neuralReset(){
+  try{
+    const d = await fetchJson(`/workspaces/${state.workspaceId}/panels`,{headers:wsHeaders()});
+    for(const p of (d.panels||[])){ await fetchJson(`/workspaces/${state.workspaceId}/panels/${p.panel_id}`,{method:"DELETE",headers:wsHeaders()}); }
+    await fetchJson(`/workspaces/${state.workspaceId}/neural/layout`,{method:"PUT",headers:wsHeaders(),body:JSON.stringify({positions:{}})});
+  }catch(e){ /* fall back to local reset */ }
+  try{ localStorage.removeItem(NEURAL_LS); localStorage.removeItem(NEURAL_CUSTOM_LS); }catch(_){}
+  neuralCustom = [];
+  neuralPos = {};
+  const stage = $("#neuralStage");
+  if(stage){ stage.querySelectorAll(".npanel").forEach(el=>el.remove()); }
+  neuralBuilt = false;
+  neuralBuild();
+  neuralBuildCustom();
+  toast("神经控制台布局已复位");
+}
+loadState();
+if(state.apiKey && state.workspaceId){ enter(); }
+</script>
+</body>
+</html>

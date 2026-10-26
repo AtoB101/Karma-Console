@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: krama
+      POSTGRES_PASSWORD: krama
+      POSTGRES_DB: krama
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U krama -d krama"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://krama:krama@db:5432/krama
+      KRAMA_SECRET_KEY: ${KRAMA_SECRET_KEY:-}
+      DEFAULT_MODEL_PROVIDER: ${DEFAULT_MODEL_PROVIDER:-mock}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.6-luna}
+      KRAMA_REGION: ${KRAMA_REGION:-CN}
+      KRAMA_API_BASE_URL: ${KRAMA_API_BASE_URL:-https://api.karma.xyz/v1}
+      KRAMA_API_KEY: ${KRAMA_API_KEY:-}
+      KRAMA_AGENT_ID: ${KRAMA_AGENT_ID:-}
+      KRAMA_IDENTITY_ID: ${KRAMA_IDENTITY_ID:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
+      BACKUP_DIR: /app/backups
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-1}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION: ${BACKUP_RETENTION:-7}
+      ENABLE_BACKGROUND_SCHEDULER: "1"
+    ports:
+      - "8000:8000"
+    volumes:
+      - appdata:/app/data
+      - backups:/app/backups
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
+  appdata:
+  backups:
