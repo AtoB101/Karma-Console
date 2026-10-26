@@ -224,6 +224,66 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .pd3d-name{font-weight:700;color:#eaf4ff;font-size:13.5px;margin-bottom:4px}
 .pd3d-meta{display:flex;justify-content:space-between;font-size:11.5px;color:#8fd8f7;margin-bottom:3px}
 .pd3d-tags{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+/* ================= 贾维斯生成式窗口舞台：一句话生成页面，旧页滑左排列 ================= */
+#jvStage{position:fixed;inset:0;z-index:50;pointer-events:none;perspective:1400px;transform-style:preserve-3d;overflow:hidden}
+#jvStage .jv-win{pointer-events:auto;position:absolute;transform-style:preserve-3d}
+/* 主窗口（当前聚焦大屏） */
+#jvStage .jv-main{left:33%;top:12%;width:63%;height:67%;background:rgba(8,16,34,.05);border:1px solid rgba(76,201,240,.5);border-radius:18px;backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);box-shadow:0 0 46px rgba(76,201,240,.18),inset 0 0 60px rgba(76,201,240,.06);display:flex;flex-direction:column;overflow:hidden;animation:jvApproach .7s cubic-bezier(.34,1.56,.64,1) both}
+#jvStage .jv-main::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#4cc9f0 35%,#ff4fd8 70%,transparent);box-shadow:0 0 18px #4cc9f0;z-index:4;pointer-events:none}
+#jvStage .jv-main::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(76,201,240,.035) 2px 4px)}
+/* 窗口 SVG 描边 + 四角（借鉴 holoFrame trace） */
+.jv-frame{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+.jv-frame rect{fill:none;stroke:#4cc9f0;stroke-width:1.5;opacity:.75;stroke-dasharray:100;stroke-dashoffset:100;animation:jvTrace .55s linear .12s forwards}
+.jv-frame path{fill:none;stroke:#ff4fd8;stroke-width:2.5;opacity:0;filter:drop-shadow(0 0 6px #ff4fd8);animation:jvCorner .1s steps(2) .55s forwards}
+@keyframes jvTrace{to{stroke-dashoffset:0}}
+@keyframes jvCorner{to{opacity:1}}
+@keyframes jvApproach{
+  0%{opacity:0;filter:blur(10px) brightness(2.1);transform:translateX(var(--jvBankX,0vw)) translateZ(-900px) rotateX(34deg) rotateY(var(--jvRotY,-14deg)) scale(.3)}
+  55%{opacity:.85;filter:blur(2px) brightness(1.45);transform:translateX(calc(var(--jvBankX,0vw)*.15)) translateZ(-180px) rotateX(7deg) rotateY(calc(var(--jvRotY,-14deg)*.35)) scale(.92)}
+  100%{opacity:1;filter:none;transform:translateX(0) translateZ(0) rotateX(0) rotateY(0) scale(1)}}
+/* 扫描线 sweep（面板落地扫一遍） */
+.jv-scan{position:absolute;inset:2px;pointer-events:none;z-index:3;opacity:0;background:linear-gradient(180deg,transparent 0%,rgba(76,201,240,.16) 44%,rgba(255,79,216,.5) 50%,rgba(76,201,240,.16) 56%,transparent 100%);background-size:100% 300%;animation:jvScanSweep .42s linear .3s;border-radius:16px}
+@keyframes jvScanSweep{0%{opacity:1;background-position:0 -100%}100%{opacity:0;background-position:0 200%}}
+/* RGB 分色闪烁 */
+.jv-chroma{position:absolute;inset:0;pointer-events:none;z-index:2;mix-blend-mode:screen;opacity:0;animation:jvChroma .38s steps(4) .32s;border-radius:18px}
+.jv-chroma.c1{box-shadow:inset 0 0 0 2px rgba(255,0,255,.4);transform:translateX(2px)}
+.jv-chroma.c2{box-shadow:inset 0 0 0 2px rgba(0,255,255,.4);transform:translateX(-2px)}
+@keyframes jvChroma{0%{opacity:.8}60%{opacity:.35}100%{opacity:0}}
+.jv-head{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid rgba(76,201,240,.28);flex-shrink:0;z-index:4;background:rgba(6,14,30,.25)}
+.jv-dot{width:8px;height:8px;border-radius:50%;background:#4cc9f0;box-shadow:0 0 10px #4cc9f0;animation:jvDotBreathe 2.4s ease-in-out infinite}
+@keyframes jvDotBreathe{50%{opacity:.35;transform:scale(.8)}}
+.jv-title{font-weight:700;color:#eaf6ff;letter-spacing:1px;text-shadow:0 0 12px rgba(76,201,240,.55);font-size:15px;flex:1}
+.jv-sub{font-size:10.5px;color:#8fd8f7;letter-spacing:1px}
+.jv-acts{display:flex;gap:8px}
+.jv-x{cursor:pointer;background:transparent;border:1px solid rgba(255,79,216,.5);color:#ff9ad5;border-radius:8px;width:26px;height:26px;font-size:14px;line-height:1;transition:all .18s}
+.jv-x:hover{background:rgba(255,79,216,.18);box-shadow:0 0 12px rgba(255,79,216,.4)}
+.jv-body{flex:1;overflow:auto;padding:16px 20px;z-index:3;scrollbar-width:thin;scrollbar-color:transparent transparent;position:relative}
+/* 左侧历史窗口列（旧页滑入） */
+#jvStage .jv-old{left:1.2%;width:25%;height:12.2%;min-height:86px;background:rgba(6,13,28,.06);border:1px solid rgba(76,201,240,.35);border-radius:14px;backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);box-shadow:0 0 22px rgba(76,201,240,.12),inset 0 0 34px rgba(76,201,240,.05);display:flex;flex-direction:column;overflow:hidden;cursor:pointer;transition:opacity .2s,box-shadow .2s}
+#jvStage .jv-old:hover{box-shadow:0 0 30px rgba(255,79,216,.3),inset 0 0 40px rgba(76,201,240,.1);z-index:3}
+#jvStage .jv-old .jv-head{padding:7px 10px;border-bottom-color:rgba(76,201,240,.18);background:rgba(6,14,30,.3)}
+#jvStage .jv-old .jv-title{font-size:11px}
+#jvStage .jv-old .jv-sub{display:none}
+#jvStage .jv-old .jv-body{display:none}
+/* 主→旧左移过渡 */
+#jvStage .jv-lefting{animation:jvLeft .52s cubic-bezier(.2,.8,.2,1) both}
+@keyframes jvLeft{
+  0%{opacity:1;transform:translateX(0) translateZ(0) rotateX(0) rotateY(0) scale(1)}
+  100%{opacity:.5;transform:translateX(-56%) translateZ(-260px) rotateX(6deg) rotateY(8deg) scale(.42)}}
+/* 旧→主恢复 */
+#jvStage .jv-restore{animation:jvRestore .6s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes jvRestore{
+  0%{opacity:.5;transform:translateX(-56%) translateZ(-260px) rotateX(6deg) rotateY(8deg) scale(.42)}
+  100%{opacity:1;transform:none}}
+/* 收起（飞回 Z 深处） */
+#jvStage .jv-fade{animation:jvFade .6s cubic-bezier(.55,0,.85,.36) both;pointer-events:none!important}
+@keyframes jvFade{
+  0%{opacity:1;transform:none;filter:none}
+  35%{opacity:.9;filter:blur(1px) brightness(1.4)}
+  100%{opacity:0;filter:blur(14px);transform:translateX(calc(var(--jvBankX,0vw)*-.4)) translateZ(-1000px) rotateX(-26deg) rotateY(calc(var(--jvRotY,-14deg)*-1)) scale(.22)}}
+/* 待命提示条 */
+#jvIdleHint{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:47;padding:9px 22px;border:1px solid rgba(76,201,240,.4);border-radius:30px;background:rgba(6,14,30,.55);backdrop-filter:blur(10px);color:#9fe0f7;font-size:12px;letter-spacing:1px;opacity:0;pointer-events:none;transition:opacity .4s;box-shadow:0 0 24px rgba(76,201,240,.2)}
+#jvIdleHint.show{opacity:1}
 /* 产品 3D 特写浮层 */
 .prod3d-overlay{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;background:rgba(2,6,16,.78);backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity .3s;perspective:1600px}
 .prod3d-overlay.open{opacity:1;pointer-events:auto}
@@ -1261,6 +1321,7 @@ function dispatchCommand(q){
   if(cp==="devops"&&typeof devTalkBottom==="function"){devTalkBottom(q);return;}
   if(cp==="cockpitSupport"&&typeof csTalkBottom==="function"){csTalkBottom(q);return;}
   if(cp==="cockpitFinance"&&typeof finTalkBottom==="function"){finTalkBottom(q);return;}
+  if(window.jvGenRoute&&window.jvGenRoute(q))return;
   if(openPanelCommand(q))return;
   javisRoute(q);
 }
@@ -1298,8 +1359,226 @@ async function matchProduct3D(q){
   popMsg("ai",`已 3D 放大「${hit.name}」，全息信息已展示，可点「详细介绍」让我完整讲解。`);
   return true;
 }
+/* ================= 贾维斯生成式窗口舞台：一句话生成页面，旧页滑左排列 ================= */
+(()=>{
+  const stage=document.createElement("div");stage.id="jvStage";document.body.appendChild(stage);
+  const hint=document.createElement("div");hint.id="jvIdleHint";document.body.appendChild(hint);
+  const jvQ=[];let jvMain=null,jvTimer=null,jvAud=null,jvFlip=0,jvLastQ="",jvLastT=0;
+  const JV_IDLE=60000,JV_MAX=6,JV_COL=7;
+  const jvDup=q=>{const n=Date.now();const hit=(n-jvLastT<800&&q===jvLastQ);jvLastQ=q;jvLastT=n;return hit;};
+  const jvE=s=>String(s==null?"":s).replace(/[<>&"']/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#39;"}[c]));
+  const jvM=n=>"¥"+(Number(n)||0).toLocaleString("zh-CN",{maximumFractionDigits:2});
+  const jvD=s=>{if(!s)return"—";const d=new Date(s);return isNaN(d)?jvE(s):(d.getMonth()+1)+"月"+d.getDate()+"日";};
+  const jvKv=(k,v)=>`<div style="border:1px solid rgba(76,201,240,.22);border-radius:12px;padding:10px 12px;background:rgba(10,20,42,.3)"><div style="font-size:10px;color:#6d93a8;letter-spacing:1px">${jvE(k)}</div><div style="font-size:16px;font-weight:700;color:#eaf6ff;margin-top:3px;text-shadow:0 0 12px rgba(76,201,240,.35)">${jvE(v)}</div></div>`;
+  const jvOrderTable=d=>{const stT={PAID:"已支付",SHIPPED:"已发货",CANCELLED:"已取消",PENDING:"待处理",REFUNDED:"已退款",LOST:"流失"};const es=Object.entries(d||{});if(!es.length)return `<div style="color:#6d93a8;font-size:12px;padding:8px 4px">窗口内暂无订单数据</div>`;return `<div style="display:flex;flex-direction:column;gap:5px">${es.map(([k,v])=>`<div style="display:flex;justify-content:space-between;border:1px solid rgba(76,201,240,.16);border-radius:9px;padding:7px 12px;background:rgba(10,20,42,.22);font-size:12.5px"><span style="color:#8fd8f7">${jvE(stT[k]||k)}</span><span style="color:#eaf6ff;font-weight:700">${v??0} 单</span></div>`).join("")}</div>`;};
+  function jvWhoosh(up){
+    try{
+      if(!jvAud)jvAud=new (window.AudioContext||window.webkitAudioContext)();
+      const t=jvAud.currentTime,o1=jvAud.createOscillator(),o2=jvAud.createOscillator(),g=jvAud.createGain();
+      const f0=up?150:850,f1=up?850:120;
+      o1.type="sawtooth";o2.type="sine";
+      o1.frequency.setValueAtTime(f0,t);o1.frequency.exponentialRampToValueAtTime(f1,t+.38);
+      o2.frequency.setValueAtTime(f0*2.02,t);o2.frequency.exponentialRampToValueAtTime(f1*2.02,t+.38);
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.08,t+.06);g.gain.exponentialRampToValueAtTime(.0001,t+.5);
+      o1.connect(g);o2.connect(g);g.connect(jvAud.destination);o1.start(t);o2.start(t);o1.stop(t+.55);o2.stop(t+.55);
+    }catch(e){}
+  }
+  function jvIdleReset(){
+    if(jvTimer)clearTimeout(jvTimer);
+    if(!jvMain&&!jvQ.length)return;
+    jvTimer=setTimeout(()=>jvCollapseAll(),JV_IDLE);
+  }
+  function jvShell(title,sub){
+    const w=document.createElement("div");
+    w.innerHTML=`<svg class="jv-frame" preserveAspectRatio="none" viewBox="0 0 100 100"><rect x="0.5" y="0.5" width="99" height="99" pathLength="100" vector-effect="non-scaling-stroke"/><path d="M0.5 8 V0.5 H8" vector-effect="non-scaling-stroke"/><path d="M92 0.5 H99.5 V8" vector-effect="non-scaling-stroke"/><path d="M99.5 92 V99.5 H92" vector-effect="non-scaling-stroke"/><path d="M8 99.5 H0.5 V92" vector-effect="non-scaling-stroke"/></svg><div class="jv-scan"></div><div class="jv-chroma c1"></div><div class="jv-chroma c2"></div><div class="jv-head"><span class="jv-dot"></span><span class="jv-title"></span><span class="jv-sub"></span><div class="jv-acts"><button class="jv-x" title="收起该窗口">✕</button></div></div><div class="jv-body"></div>`;
+    w.querySelector(".jv-title").textContent=title;w.querySelector(".jv-sub").textContent=sub||"主脑生成";
+    w.querySelector(".jv-x").onclick=()=>jvClose(w);
+    return w;
+  }
+  function jvLayout(){jvQ.forEach((w,i)=>{w.style.top=(12+i*JV_COL)+"%";});}
+  async function jvOpen(kind,title,sub,render){
+    if(jvMain){jvMain.classList.add("jv-lefting");jvMain.style.pointerEvents="none";}
+    const w=jvShell(title,sub);
+    w.classList.add("jv-win","jv-main");
+    const bank=jvFlip%2?55:-55;jvFlip++;
+    w.style.setProperty("--jvBankX",bank+"vw");
+    w.style.setProperty("--jvRotY",(bank>0?-16:16)+"deg");
+    stage.appendChild(w);
+    const mb=w.querySelector(".jv-body");
+    mb.innerHTML=`<div style="color:#8fd8f7;font-size:12px;letter-spacing:1px;padding:8px 2px">正在聚合本地数据…</div>`;
+    try{await render(w,mb);}catch(e){mb.innerHTML=`<div class="msg ai thinking">数据聚合失败：${jvE(e&&e.message||e)}</div>`;}
+    jvWhoosh(true);
+    if(jvMain){
+      const old=jvMain;
+      setTimeout(()=>{old.classList.remove("jv-main","jv-lefting");old.classList.add("jv-old");old.style.pointerEvents="";old.style.top="";old.style.left="";jvQ.push(old);while(jvQ.length>JV_MAX){jvClose(jvQ.shift(),true);}jvLayout();},600);
+    }
+    jvMain=w;window.__jvMain=w;
+    jvIdleReset();
+  }
+  function jvClose(w,skipIdle){
+    if(!w)return;
+    if(w===jvMain){jvMain=null;window.__jvMain=null;}
+    else{const i=jvQ.indexOf(w);if(i>=0){jvQ.splice(i,1);jvLayout();}}
+    w.style.pointerEvents="none";
+    jvWhoosh(false);
+    w.classList.add("jv-fade");
+    setTimeout(()=>w.remove(),700);
+    if(!skipIdle)jvIdleReset();
+  }
+  function jvCollapseAll(){
+    if(jvMain){const m=jvMain;jvMain=null;window.__jvMain=null;jvWhoosh(false);m.classList.add("jv-fade");setTimeout(()=>m.remove(),700);}
+    jvQ.forEach(w=>{jvWhoosh(false);w.classList.add("jv-fade");setTimeout(()=>w.remove(),700);});
+    jvQ.length=0;
+    if(jvTimer)clearTimeout(jvTimer);
+    hint.textContent="窗口已收起 · 后端继续运行中";hint.classList.add("show");
+    setTimeout(()=>hint.classList.remove("show"),2800);
+  }
+  function jvBack(){
+    if(!jvQ.length){hint.textContent="已是最新页面 · 没有更早的窗口";hint.classList.add("show");setTimeout(()=>hint.classList.remove("show"),2200);return;}
+    const old=jvQ.pop();
+    old.classList.remove("jv-old");old.classList.add("jv-main","jv-restore");
+    old.style.top="";old.style.left="";
+    jvLayout();jvWhoosh(true);
+    if(jvMain){const cur=jvMain;setTimeout(()=>{cur.classList.remove("jv-main");cur.classList.add("jv-old","jv-lefting");cur.style.pointerEvents="";cur.style.top="";cur.style.left="";jvQ.push(cur);jvLayout();},80);}
+    jvMain=old;window.__jvMain=old;
+    jvIdleReset();
+  }
+  /* ---- 渲染器（全部真实本地数据，不伪造） ---- */
+  async function jvLoad(u){const r=await jsend("GET",u);return r;}
+  const jvArr=r=>{if(!r)return [];if(Array.isArray(r))return r;for(const k of ["items","list","rows","data","results"]){if(Array.isArray(r[k]))return r[k];}return [];};
+  async function jvRenderReport(w,mb,days,offset){
+    const r=await jvLoad(`/workspaces/${state.workspaceId}/analytics/report?days=${days||30}&offset=${offset||0}`);
+    const s=r.summary||{},rg=r.range||{},b=(r.buckets||[]).slice(-Math.min(12,(r.buckets||[]).length));
+    const max=Math.max(1,...b.map(x=>Number(x.revenue)||0));
+    w.querySelector(".jv-title").textContent="经营报表 · "+(rg.label||"近30天");
+    mb.innerHTML=`
+      <div style="font-size:11.5px;color:#8fd8f7;letter-spacing:1px;margin-bottom:14px;line-height:1.8">
+        窗口：<b style="color:#eaf6ff">${jvE(rg.label||"近30天")}</b>
+        ${rg.start?` · ${jvE(String(rg.start).slice(0,10))} ~ ${jvE(String(rg.end).slice(0,10))}`:""}
+        <span style="opacity:.72;display:block">${jvE(r.caveat||"")}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+        ${jvKv("订单数",(s.orders??0)+" 单")}${jvKv("本地营收",jvM(s.revenue||0))}${jvKv("新增客户",(s.new_customers??0)+" 位")}${jvKv("待办/待审批",`${s.pending_todos??0} / ${s.pending_approvals??0}`)}</div>
+      <div style="font-size:11.5px;color:#8fd8f7;letter-spacing:1px;margin-bottom:6px">近 ${b.length} 天营收走势（本地口径）</div>
+      <div style="display:flex;align-items:flex-end;gap:5px;height:86px;margin-bottom:18px;padding:0 2px">
+        ${b.map(x=>{const h=Math.max(3,Math.round((Number(x.revenue)||0)/max*82));return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="width:100%;height:${h}px;background:linear-gradient(180deg,rgba(255,79,216,.75),rgba(76,201,240,.35));border-radius:4px 4px 0 0;box-shadow:0 0 8px rgba(76,201,240,.3)"></div><span style="font-size:9px;color:#6d93a8">${jvD(x.date)}</span></div>`;}).join("")}</div>
+      <div style="font-size:11.5px;color:#8fd8f7;letter-spacing:1px;margin-bottom:6px">订单状态分布</div>
+      ${jvOrderTable(s.order_status||{})}
+      <div style="margin-top:14px;font-size:10.5px;color:#6d93a8">负责：主脑·经营分析 ｜ 只读聚合本工作区数据，金额为本地订单口径，真实结算以 Karma 回执为准</div>`;
+  }
+  async function jvRenderProducts(w,mb){
+    const r=await jvLoad(`/workspaces/${state.workspaceId}/products`);
+    const rows=jvArr(r);
+    const on=rows.filter(p=>String(p.status||"").toUpperCase()!=="OFF"&&String(p.status||"").toUpperCase()!=="ARCHIVED");
+    const low=rows.filter(p=>Number(p.stock)<=5);
+    w.querySelector(".jv-title").textContent="产品库";
+    w.querySelector(".jv-sub").textContent=`${rows.length} 款商品 · 商品/库存 Agent`;
+    mb.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">${jvKv("商品总数",rows.length+" 款")}${jvKv("在售",on.length+" 款")}${jvKv("低库存(≤5)",low.length+" 款")}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+        ${rows.slice(0,24).map(p=>{const st=String(p.status||"ON").toUpperCase();return `<div style="border:1px solid rgba(76,201,240,.22);border-radius:12px;padding:10px;background:rgba(10,20,42,.3)"><div style="font-weight:700;color:#eaf6ff;font-size:12.5px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${jvE(p.name||"—")}</div><div style="font-size:10.5px;color:#8fd8f7">${jvM(p.price)} · 库存 ${p.stock??"—"}</div><div style="font-size:10px;color:${st==="OFF"?"#ff6b81":"#72e0c2"};margin-top:4px">${st==="OFF"?"已下架":"在售"}</div></div>`;}).join("")}</div>
+      <div style="margin-top:14px;font-size:10.5px;color:#6d93a8">负责：商品/库存 Agent ｜ 实时读取自营产品库；客户问答、营销文案、视频方案与开发均以本库为同源数据</div>`;
+  }
+  async function jvRenderCustomers(w,mb){
+    const r=await jvLoad(`/workspaces/${state.workspaceId}/customers`);
+    const rows=jvArr(r);
+    const stageOf=c=>{const k=String(c.stage||"new").toLowerCase();return({new:"新增",lead:"咨询",negotiate:"详谈",won:"成交",repeat:"复购"})[k]||k;};
+    const cnt={};rows.forEach(c=>{const k=stageOf(c);cnt[k]=(cnt[k]||0)+1;});
+    w.querySelector(".jv-title").textContent="客户全景";
+    w.querySelector(".jv-sub").textContent=`${rows.length} 位客户 · 智能获客 Agent`;
+    mb.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">${["新增","咨询","详谈","成交","复购"].map(k=>jvKv(k+"客户",(cnt[k]||0)+" 位")).join("")}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${rows.slice(0,16).map(c=>{const st=stageOf(c);const sc=st==="成交"?"#ff4fd8":st==="复购"?"#72e0c2":"#8fd8f7";return `<div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(76,201,240,.18);border-radius:10px;padding:8px 12px;background:rgba(10,20,42,.25)"><span style="width:52px;flex-shrink:0;font-size:10px;color:${sc};border:1px solid currentColor;border-radius:20px;text-align:center;padding:2px 0">${jvE(st)}</span><span style="flex:1;font-weight:600;color:#eaf6ff;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${jvE(c.name||"—")}</span><span style="font-size:10.5px;color:#8fd8f7">${jvE(c.phone||c.email||"")}</span><span style="font-size:10px;color:#6d93a8">${jvD(c.created_at||c.createdAt||"")}</span></div>`;}).join("")}</div>
+      <div style="margin-top:14px;font-size:10.5px;color:#6d93a8">负责：智能获客 Agent ｜ 线索按评分规则分级，SOP 跟进节奏自动生成待办；阶段推进经网关留痕</div>`;
+  }
+  async function jvRenderOrders(w,mb){
+    const r=await jvLoad(`/workspaces/${state.workspaceId}/orders`);
+    const rows=jvArr(r);
+    const stT={PAID:"已支付",SHIPPED:"已发货",CANCELLED:"已取消",PENDING:"待处理",REFUNDED:"已退款"};
+    const stC={PAID:"#ffb300",SHIPPED:"#72e0c2",CANCELLED:"#ff6b81",PENDING:"#8fd8f7",REFUNDED:"#ff4fd8"};
+    w.querySelector(".jv-title").textContent="订单成交";
+    w.querySelector(".jv-sub").textContent=`${rows.length} 单 · 订单履约 Agent`;
+    mb.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">${jvKv("订单总数",rows.length+" 单")}${jvKv("成交金额",jvM(rows.reduce((a,o)=>a+(Number(o.amount)||0),0)))}${jvKv("待发货",rows.filter(o=>String(o.status||"").toUpperCase()==="PAID").length+" 单")}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${rows.slice(0,16).map(o=>{const st=String(o.status||"").toUpperCase();return `<div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(76,201,240,.18);border-radius:10px;padding:8px 12px;background:rgba(10,20,42,.25)"><span style="font-size:10px;color:#6d93a8;flex-shrink:0">#${jvE(o.id||"—")}</span><span style="flex:1;font-weight:600;color:#eaf6ff;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${jvE(o.product_name||o.item||"—")}</span><span style="color:#eaf6ff;font-size:12px">${jvM(o.amount)}</span><span style="font-size:10px;color:${stC[st]||"#8fd8f7"};border:1px solid currentColor;border-radius:20px;padding:2px 8px;flex-shrink:0">${jvE(stT[st]||o.status||"—")}</span></div>`;}).join("")}</div>
+      <div style="margin-top:14px;font-size:10.5px;color:#6d93a8">负责：订单履约 Agent ｜ 发货/取消经网关执行并留痕；物流为外部接入凭证位</div>`;
+  }
+  async function jvRenderTasks(w,mb){
+    let t=[],a=[];
+    try{const r=await jvLoad(`/workspaces/${state.workspaceId}/todos`);t=jvArr(r);}catch(e){}
+    try{const r=await jvLoad(`/workspaces/${state.workspaceId}/approvals`);a=jvArr(r);}catch(e){}
+    w.querySelector(".jv-title").textContent="任务与审批";
+    w.querySelector(".jv-sub").textContent=`${t.length} 待办 / ${a.length} 待审批 · CEO 主脑分派`;
+    mb.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">${jvKv("待办任务",t.length+" 项")}${jvKv("待你拍板",a.length+" 项")}</div>
+      ${a.length?`<div style="font-size:11.5px;color:#ffb300;letter-spacing:1px;margin-bottom:6px">待你拍板</div><div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">${a.slice(0,6).map(x=>`<div style="border:1px solid rgba(255,179,0,.35);border-radius:10px;padding:8px 12px;background:rgba(40,30,8,.3);color:#ffe2a8;font-size:12px">${jvE(x.summary||x.message||x.title||JSON.stringify(x).slice(0,80))}</div>`).join("")}</div>`:""}
+      <div style="font-size:11.5px;color:#8fd8f7;letter-spacing:1px;margin-bottom:6px">待办清单</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${t.length?t.slice(0,14).map(x=>{const done=String(x.status||"").toUpperCase()==="DONE";return `<div style="display:flex;align-items:center;gap:9px;border:1px solid rgba(76,201,240,.18);border-radius:10px;padding:7px 12px;background:rgba(10,20,42,.25)"><span style="width:9px;height:9px;border-radius:50%;background:${done?"#72e0c2":"#ffb300"};box-shadow:0 0 8px currentColor;flex-shrink:0"></span><span style="flex:1;color:#eaf6ff;font-size:12.5px;${done?"opacity:.55;text-decoration:line-through":""}">${jvE(x.title||x.task||"—")}</span><span style="font-size:10px;color:#6d93a8">${jvD(x.due||x.due_date||"")}</span></div>`;}).join(""):`<div style="color:#6d93a8;font-size:12px;padding:10px 4px">当前没有待办任务</div>`}
+      </div>
+      <div style="margin-top:14px;font-size:10.5px;color:#6d93a8">负责：CEO 主脑分派 ｜ 任务落账状态机统一视图；待审批经神经闸决策，重大动作需你授权</div>`;
+  }
+  async function jvRenderStock(w,mb){
+    const r=await jvLoad(`/workspaces/${state.workspaceId}/products`);
+    const rows=jvArr(r);
+    const total=rows.reduce((a,p)=>a+(Number(p.stock)||0),0);
+    const low=rows.filter(p=>Number(p.stock)<=5).sort((a,b)=>Number(a.stock)-Number(b.stock));
+    w.querySelector(".jv-title").textContent="库存总览";
+    w.querySelector(".jv-sub").textContent=`${rows.length} 款 · 库存 Agent`;
+    mb.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">${jvKv("在库 SKU",rows.length+" 款")}${jvKv("库存总量",total+" 件")}${jvKv("低库存预警",low.length+" 款")}</div>
+      <div style="font-size:11.5px;color:#ff6b81;letter-spacing:1px;margin-bottom:6px">低库存预警清单（≤5 件）</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${low.length?low.slice(0,10).map(p=>`<div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(255,107,129,.35);border-radius:10px;padding:8px 12px;background:rgba(40,10,16,.3)"><span style="flex:1;color:#eaf6ff;font-size:12.5px">${jvE(p.name||"—")}</span><span style="color:#ff6b81;font-size:12px;font-weight:700">${p.stock??"—"} 件</span></div>`).join(""):`<div style="color:#72e0c2;font-size:12px;padding:8px 4px">库存健康，无低库存预警</div>`}
+      </div>
+      <div style="margin-top:14px;font-size:10.5px;color:#6d93a8">负责：库存 Agent ｜ 补货动作经网关 add_stock 留痕；产品库为全系统共享数据源，客服问答与营销同源实时读取</div>`;
+  }
+  async function jvRenderSystem(w,mb){
+    let r=null,key=false;
+    try{r=await jvLoad(`/workspaces/${state.workspaceId}/readiness`);}catch(e){}
+    try{const k=await jvLoad("/health/ready");key=!!(k&&(k.ready!==false));}catch(e){}
+    w.querySelector(".jv-title").textContent="系统状态";
+    w.querySelector(".jv-sub").textContent="系统维护 Agent";
+    const ok=v=>v===true||v==="ok"||v===1;
+    const rows=[];if(r&&typeof r==="object"){for(const [k,v] of Object.entries(r)){if(typeof v!=="object")rows.push([k,v]);}}
+    mb.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">${jvKv("服务就绪",key?"正常":"异常")}${jvKv("数据库",ok(r&&r.db&&r.db.ok)?"正常":"未知")}${jvKv("模型接入",state.modelCfg?"已配置":"待配置")}</div>
+      <div style="border:1px solid rgba(76,201,240,.22);border-radius:12px;padding:12px 14px;background:rgba(10,20,42,.25);font-size:12px;line-height:1.9">
+        ${rows.length?rows.map(([k,v])=>`<div style="display:flex;justify-content:space-between"><span style="color:#6d93a8">${jvE(k)}</span><span style="color:#eaf6ff">${jvE(String(v))}</span></div>`).join(""):"就绪详情未返回"}</div>
+      <div style="margin-top:14px;font-size:10.5px;color:#6d93a8">负责：系统维护 Agent ｜ 只读探针，不暴露密钥与跨工作区数据；异常时自动进入巡检预案</div>`;
+  }
+  /* ---- 生成式路由：一句指令 → 生成窗口 ---- */
+  function jvNorm(q){return String(q||"").replace(/\s+/g,"").toLowerCase();}
+  async function jvGenRoute(q){
+    const t=jvNorm(q);
+    if(jvDup(t))return true;
+    if(/打开|进入.*(面板|工作台|页面)/.test(t))return false;
+    if(/回到上一页|返回上一页|回上一页|上一个窗口|看上一页/.test(t)){jvBack();popMsg("ai","已回到上一页：最近窗口已回到主位。");return true;}
+    if(/收起全部|全部收起|关闭全部|清屏|所有窗口/.test(t)){jvCollapseAll();popMsg("ai","已收起全部窗口，后端继续运行中。");return true;}
+    if(/关闭窗口|关掉窗口|收起当前/.test(t)){if(window.__jvMain){jvClose(window.__jvMain);popMsg("ai","当前窗口已收起。");}else{popMsg("ai","当前没有打开的窗口。");}return true;}
+    if(/系统状态|系统健康|运行状态|系统就绪|就绪状态/.test(t)){jvOpen("system","系统状态","系统维护 Agent",jvRenderSystem);return true;}
+    if(/库存|补货预警|库存预警/.test(t)){jvOpen("stock","库存总览","库存 Agent",jvRenderStock);return true;}
+    if(/产品库|商品库|有哪些产品|产品都有什么|看看产品/.test(t)){jvOpen("product","产品库","商品/库存 Agent",jvRenderProducts);return true;}
+    if(/客户全景|客户情况|有哪些客户|客户列表/.test(t)){jvOpen("customer","客户全景","智能获客 Agent",jvRenderCustomers);return true;}
+    if(/订单|成交记录|发货情况|我的订单/.test(t)){jvOpen("order","订单成交","订单履约 Agent",jvRenderOrders);return true;}
+    if(/任务|待办|审批|要做什么|工作计划/.test(t)){jvOpen("task","任务与审批","CEO 主脑分派",jvRenderTasks);return true;}
+    if(/报表|经营|这个月|上月|本月|昨日|昨天|月度|近\s*\d+\s*天/.test(t)){
+      let days=30,offset=0;
+      const m=t.match(/近\s*(\d+)\s*天/);
+      if(m)days=Math.min(180,Math.max(1,Number(m[1])));
+      if(/昨日|昨天/.test(t)){days=1;offset=1;}
+      else if(/上月|上个月/.test(t)){days=30;offset=30;}
+      jvOpen("report","经营报表","主脑·经营分析",(w,mb)=>jvRenderReport(w,mb,days,offset));
+      return true;
+    }
+    return false;
+  }
+  window.jvGenRoute=jvGenRoute;window.jvStage={open:jvOpen,back:jvBack,collapse:jvCollapseAll,close:jvClose};
+})();
 async function javisRoute(q){
   toggleChatPop(true);
+  if(window.jvGenRoute&&window.jvGenRoute(q))return;
   if(AUTH_RE.test(q)){authorizeFlow();return;}
   if(matchFunnelDrill(q))return;
   if(await matchProduct3D(q))return;

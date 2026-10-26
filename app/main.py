@@ -4262,6 +4262,97 @@ def briefing(
     )
 
 
+@app.get("/workspaces/{workspace_id}/analytics/report")
+def analytics_report(
+    workspace_id: str,
+    actor: Actor = Depends(require_actor),
+    db: Session = Depends(get_db),
+    days: int = 30,
+    offset: int = 0,
+) -> dict:
+    """只读经营报表聚合：按天桶输出订单/本地营收/新增客户，支持任意窗口与偏移（offset=1 即昨日）。金额为本地订单口径，非平台对账。"""
+    from datetime import datetime, timedelta, timezone
+
+    days = max(1, min(int(days or 30), 180))
+    offset = max(0, int(offset or 0))
+    now = datetime.now(timezone.utc)
+    end = now - timedelta(days=offset)
+    start = end - timedelta(days=days - 1)
+
+    orders = db.execute(select(Order).where(Order.workspace_id == actor.workspace_id)).scalars().all()
+    customers = db.execute(select(Customer).where(Customer.workspace_id == actor.workspace_id)).scalars().all()
+    products = db.execute(select(Product).where(Product.workspace_id == actor.workspace_id)).scalars().all()
+    todos = db.execute(select(Todo).where(Todo.workspace_id == actor.workspace_id, Todo.status == "pending")).scalars().all()
+    approvals = db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.workspace_id == actor.workspace_id,
+            ApprovalRequest.status == ApprovalStatus.PENDING.value,
+        )
+    ).scalars().all()
+
+    def _utc(dt):
+        if dt is None:
+            return None
+        return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    buckets = [
+        {"date": (start + timedelta(days=i)).date().isoformat(), "orders": 0, "revenue": 0.0, "new_customers": 0}
+        for i in range(days)
+    ]
+    idx = {b["date"]: i for i, b in enumerate(buckets)}
+    order_status: dict[str, int] = {}
+    for o in orders:
+        cd = _utc(getattr(o, "created_at", None))
+        if cd is None:
+            continue
+        key = cd.date().isoformat()
+        if key not in idx:
+            continue
+        buckets[idx[key]]["orders"] += 1
+        amt = float(getattr(o, "total_amount", 0) or 0)
+        if getattr(o, "status", None) in ("PAID", "COMPLETED", "FULFILLED", "DONE"):
+            buckets[idx[key]]["revenue"] += amt
+        st = getattr(o, "status", "?") or "?"
+        order_status[st] = order_status.get(st, 0) + 1
+    for c in customers:
+        cd = _utc(getattr(c, "created_at", None))
+        if cd is None:
+            continue
+        key = cd.date().isoformat()
+        if key in idx:
+            buckets[idx[key]]["new_customers"] += 1
+
+    revenue = round(sum(b["revenue"] for b in buckets), 2)
+    low_stock = [
+        {"id": p.id, "name": getattr(p, "name", ""), "stock": getattr(p, "stock", 0)}
+        for p in products
+        if (getattr(p, "stock", 0) or 0) <= 5
+    ][:8]
+    return {
+        "range": {
+            "start": start.date().isoformat(),
+            "end": end.date().isoformat(),
+            "days": days,
+            "offset": offset,
+            "label": "昨日" if offset == 1 else f"近 {days} 天",
+        },
+        "buckets": buckets,
+        "summary": {
+            "orders": sum(b["orders"] for b in buckets),
+            "revenue": revenue,
+            "new_customers": sum(b["new_customers"] for b in buckets),
+            "pending_todos": len(todos),
+            "pending_approvals": len(approvals),
+            "total_orders": len(orders),
+            "total_products": len(products),
+            "low_stock_count": len(low_stock),
+            "low_stock_items": low_stock,
+            "order_status": order_status,
+        },
+        "caveat": "金额为本地订单口径，非平台对账；真实结算以 Karma 回执为准。",
+    }
+
+
 @app.post("/workspaces/{workspace_id}/briefing/snapshot")
 def briefing_snapshot_save(
     workspace_id: str,
