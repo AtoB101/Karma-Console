@@ -3119,6 +3119,143 @@ def put_settings(payload: schemas.SettingsUpdate, actor: Actor = Depends(require
     return _settings_out(ws.settings)
 
 
+# ---------- Karma 结算接入向导（认证状态机 / 连通自检 / 解除绑定） ----------
+
+def _karma_cfg(ws: Workspace) -> dict:
+    return dict((ws.settings or {}).get("karma") or {})
+
+
+@app.get("/workspaces/{workspace_id}/karma/onboard")
+def karma_onboard_status(actor: Actor = Depends(require_actor), db: Session = Depends(get_db)) -> dict:
+    """只读：Karma 接入向导状态（步骤进度 + 已配置脱敏摘要），不触发任何外部调用。"""
+    from . import karma_onboard
+    ws = db.get(Workspace, actor.workspace_id)
+    state = karma_onboard.derive_state(_karma_cfg(ws))
+    state["oauth_callback"] = {
+        "supported": False,
+        "note": "授权回调需 Karma 官网提供 OAuth 授权页后启用（联调预留位，不伪造）",
+    }
+    return state
+
+
+@app.post("/workspaces/{workspace_id}/karma/onboard/confirm-kyc")
+def karma_onboard_confirm_kyc(actor: Actor = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """owner 登记：用户已在 Karma 官网完成实名认证（KYC）。
+
+    实名认证本身必须发生在 Karma 官网；这里只记录"用户确认已认证"，
+    便于向导推进，绝不代替或伪造认证结果。
+    """
+    from . import karma_onboard
+    ws = db.get(Workspace, actor.workspace_id)
+    settings = dict(ws.settings or {})
+    _snapshot_settings(db, ws, settings, note="karma kyc confirmed")
+    karma = dict(settings.get("karma") or {})
+    import time as _t
+    karma["kyc_confirmed"] = True
+    karma["kyc_at"] = _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime())
+    settings["karma"] = karma
+    ws.settings = settings
+    db.commit()
+    db.refresh(ws)
+    audit_record(db, workspace_id=actor.workspace_id, actor_id=actor.user.id or "",
+                 action="karma_onboard_kyc_confirmed", risk_level="R2", decision=Decision.ALLOWED,
+                 resource=f"workspace:{ws.id}", reason="登记已在 Karma 官网完成实名认证", evidence={}, data_tier="INTERNAL")
+    return karma_onboard.derive_state(_karma_cfg(ws))
+
+
+@app.post("/workspaces/{workspace_id}/karma/onboard/test")
+def karma_onboard_test(actor: Actor = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """owner 自检：用已保存的凭证真实调用 Karma API（token 交换），返回真实回执。
+
+    失败不伪造成功：明确返回 not_connected 与具体原因（无凭证/凭证无效/网络不可达）。
+    """
+    from . import crypto, karma as karma_mod
+    from .karma import KarmaClientError
+    ws = db.get(Workspace, actor.workspace_id)
+    karma = _karma_cfg(ws)
+    api_key = ""
+    if karma.get("api_key_enc"):
+        try:
+            api_key = crypto.decrypt(karma["api_key_enc"])
+        except Exception:
+            api_key = ""
+    elif karma.get("api_key"):
+        api_key = karma["api_key"]
+    if not api_key:
+        return {"connected": False, "error": "no_api_key", "detail": "请先在设置面板填写 Karma API Key"}
+    base_url = karma.get("base_url") or settings.karma_api_base_url
+    client = karma_mod.KarmaClient(
+        base_url=base_url,
+        api_key=api_key,
+        agent_id=karma.get("agent_id") or "",
+        identity_id=karma.get("identity_id") or "",
+        timeout=10.0,
+    )
+    try:
+        token = client.exchange_token()
+        agent = {}
+        capacity = {}
+        try:
+            if client.agent_id:
+                agent = client.get_agent(client.agent_id)
+        except Exception:
+            agent = {}
+        try:
+            if client.identity_id:
+                capacity = client.get_capacity(client.identity_id)
+        except Exception:
+            capacity = {}
+        ok = bool(token)
+        ws_settings = dict(ws.settings or {})
+        _snapshot_settings(db, ws, ws_settings, note="karma onboard test")
+        karma_cfg = dict(ws_settings.get("karma") or {})
+        karma_cfg["test_ok"] = ok
+        karma_cfg["test_at"] = __import__("time").strftime("%Y-%m-%dT%H:%M:%SZ", __import__("time").gmtime())
+        ws_settings["karma"] = karma_cfg
+        ws.settings = ws_settings
+        db.commit()
+        db.refresh(ws)
+        audit_record(db, workspace_id=actor.workspace_id, actor_id=actor.user.id or "",
+                     action="karma_onboard_test", risk_level="R1", decision=Decision.ALLOWED,
+                     resource=f"workspace:{ws.id}", reason="Karma 连通自检",
+                     evidence={"connected": ok, "agent_id": bool(agent), "identity_id": bool(capacity)},
+                     data_tier="INTERNAL")
+        return {
+            "connected": ok,
+            "error": "" if ok else "test_failed",
+            "token_exchanged": bool(token),
+            "agent": {"id": agent.get("id") or agent.get("agent_id") or ""} if agent else {},
+            "identity": {"capacity_lookup": bool(capacity)},
+            "detail": "Karma API 连接成功" if ok else "凭证已连通但回执异常",
+            "note": "真实 Karma API 自检回执",
+        }
+    except KarmaClientError as exc:
+        msg = str(exc)
+        err = "invalid_credentials" if ("401" in msg or "403" in msg) else "api_error"
+        return {"connected": False, "error": err, "detail": msg[:300], "note": "真实 Karma API 自检回执"}
+    except Exception as exc:  # httpx 网络/超时等
+        return {"connected": False, "error": "unreachable", "detail": str(exc)[:300], "note": "真实 Karma API 自检回执"}
+    finally:
+        client.close()
+
+
+@app.post("/workspaces/{workspace_id}/karma/onboard/unlink")
+def karma_onboard_unlink(actor: Actor = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """owner 解除绑定：清除本工作区的 Karma 凭证与认证标记，回到未接入（stub）状态。"""
+    from . import karma_onboard
+    ws = db.get(Workspace, actor.workspace_id)
+    settings = dict(ws.settings or {})
+    _snapshot_settings(db, ws, settings, note="karma unlink")
+    settings["karma"] = {}
+    ws.settings = settings
+    db.commit()
+    db.refresh(ws)
+    audit_record(db, workspace_id=actor.workspace_id, actor_id=actor.user.id or "",
+                 action="karma_onboard_unlinked", risk_level="R2", decision=Decision.ALLOWED,
+                 resource=f"workspace:{ws.id}", reason="解除 Karma 结算绑定，回到 stub 模式", evidence={}, data_tier="INTERNAL")
+    return karma_onboard.derive_state(_karma_cfg(ws))
+
+
 # ---------- 多模型注册表（总控制台可接入多个模型，Agent 按 model_id 选择） ----------
 
 def _model_entries(ws: Workspace) -> list[dict]:

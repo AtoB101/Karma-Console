@@ -1968,6 +1968,7 @@ async function loadLedgerPanel(){
   const o=await sjget(`/workspaces/${state.workspaceId}/orders`);
   let integ={adapters:[]};
   try{integ=await sjget(`/workspaces/${state.workspaceId}/integrations/status`);}catch(e){}
+  const ob=await sjget(`/workspaces/${state.workspaceId}/karma/onboard`);
   const karma=(integ.adapters||[]).find(a=>a.key==="karma_payment")||null;
   const rows=(o&&o.orders)||[];
   const settled=rows.filter(x=>["PAID","SHIPPED","DELIVERED"].includes(x.status));
@@ -1992,7 +1993,62 @@ async function loadLedgerPanel(){
     ${karma.missing&&karma.missing.length?`<div class="pm-meta" style="margin-top:4px">待补凭证位：${karma.missing.map(m=>esc(m.env)).join("、")}</div>`:`<div class="pm-meta" style="margin-top:4px">必填凭证已填齐，待真实 ping（不代表已连通）。</div>`}
     <details style="margin-top:6px"><summary class="pm-meta" style="cursor:pointer">待实现真实资金方法（${(karma.methods||[]).length}）</summary><ul class="pm-meta" style="margin:6px 0 0 18px;padding:0">${(karma.methods||[]).map(m=>`<li style="margin:2px 0">${esc(m)}</li>`).join("")}</ul></details>
   </div>`:`<div class="pm-meta">联调登记未返回（旧服务或未启用）。</div>`}
+  ${ob?karmaOnboardCard(ob):""}
   <div class="pm-meta" style="margin-top:14px">说明：真实扣款、退款与对账需接入 Karma 支付 API Key 后联调；此处只做本地订单金额汇总，不伪造资金流水。</div>`;
+}
+
+function karmaOnboardCard(ob){
+  const s=ob.summary||{};
+  const LBL={not_started:["未开始","#ffc86b"],kyc:["已实名","#9db4ff"],configured:["已填凭证","#9db4ff"],bound:["已绑定","#48e6b3"],active:["已激活","#48e6b3"]};
+  const [lbl,cls]=(LBL[ob.overall]||LBL.not_started);
+  const stepRow=(st,i)=>{
+    const dot=st.done?`<div style="width:18px;height:18px;border-radius:50%;background:#0c7a5e;box-shadow:0 0 10px #48e6b388;display:flex;align-items:center;justify-content:center;font-size:11px;color:#c9ffe9">✓</div>`:(st.current?`<div style="width:18px;height:18px;border-radius:50%;background:#4a3310;box-shadow:0 0 10px #ffc86b88;display:flex;align-items:center;justify-content:center;font-size:11px;color:#ffd479">●</div>`:`<div style="width:18px;height:18px;border-radius:50%;border:1px solid #2c4a68;display:flex;align-items:center;justify-content:center;font-size:10px;color:#5c7a96">○</div>`);
+    return `<div style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;opacity:${st.done||st.current?1:.55}">
+      ${dot}<div><div style="font-weight:600;font-size:13.5px;color:${st.done?"#48e6b3":st.current?"#ffd479":"#b9c8d8"}">${esc(st.title)}</div>
+      <div class="pm-meta">${esc(st.desc)}</div></div></div>`;
+  };
+  const acts=[];
+  if(!s.kyc_confirmed){
+    acts.push(`<a href="${esc(ob.official_site||"#")}" target="_blank" rel="noopener" class="pm-btn sm">前往 Karma 官网实名认证</a>`);
+    acts.push(`<button class="pm-btn sm" onclick="karmaOnboardAct('confirm-kyc')">我已完成实名认证</button>`);
+  }
+  if(s.kyc_confirmed&&!s.api_key){
+    acts.push(`<button class="pm-btn sm" onclick="openPanel('settings')">去设置面板填 Karma Key</button>`);
+  }
+  if(s.api_key&&!s.tested){
+    acts.push(`<button class="pm-btn sm" onclick="karmaOnboardAct('test')">测试连接（真实回执）</button>`);
+  }
+  if(s.tested){
+    acts.push(`<button class="pm-btn sm" onclick="karmaOnboardAct('test')">重新测试</button>`);
+  }
+  if(s.api_key||s.agent_id){
+    acts.push(`<button class="pm-btn sm danger" onclick="karmaOnboardAct('unlink')">解除绑定</button>`);
+  }
+  const oauth=ob.oauth_callback&&!ob.oauth_callback.supported
+    ?`<div class="pm-meta" style="margin-top:8px">自动授权跳转：${esc(ob.oauth_callback.note)}</div>`:"";
+  return `<div style="margin-top:16px;border:1px solid rgba(196,128,255,.28);border-radius:14px;padding:14px 16px;background:linear-gradient(135deg,rgba(196,128,255,.09),rgba(76,201,240,.05))">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font-weight:700;font-size:15px;color:#e6d9ff;letter-spacing:1px">Karma 接入向导</div>
+      <span class="pm-chip ${ob.overall==="active"?"ok":"warn"}" style="background:${ob.overall==="active"?"#08433b":"#4a3310"}">${lbl}</span>
+    </div>
+    <div class="pm-meta" style="margin-top:4px">实名认证 → 创建身份 → 生成密钥 → 绑定控制台 → 激活。每一步都有真实回执，不伪造连通。</div>
+    <div style="margin-top:8px">${(ob.steps||[]).map((st,i)=>stepRow(st,i)).join("")}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${acts.join("")}</div>
+    ${oauth}
+  </div>`;
+}
+
+async function karmaOnboardAct(action){
+  try{
+    const r=await jsend("POST",`/workspaces/${state.workspaceId}/karma/onboard/${action}`,{});
+    if(action==="confirm-kyc")toast("已登记：Karma 官网实名认证完成");
+    else if(action==="test"){
+      if(r&&r.connected)toast("Karma 连接成功：真实回执已取得");
+      else toast((r&&r.error==="no_api_key")?"未配置 Karma API Key":((r&&r.detail)||"连接失败，查看详情"));
+    }
+    else if(action==="unlink")toast("已解除 Karma 绑定，回到 stub 模式");
+    loadLedgerPanel();
+  }catch(e){toast(e.message);}
 }
 
 async function loadAnalyticsPanel(){
