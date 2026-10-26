@@ -4351,6 +4351,72 @@ async def chat_inbound(payload: schemas.ChatInbound, request: Request, db: Sessi
     )
 
 
+@app.post("/workspaces/{workspace_id}/chat-token/rotate")
+def rotate_chat_token(actor: Actor = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """自助接入：生成/重置聊天接入 Token（owner-only）。
+
+    新 Token 立即生效并加入 O(1) 索引；明文只在本次响应返回一次，
+    后续 GET /settings 只回掩码。旧 Token 同时失效（哈希被替换）。
+    """
+    ws = db.get(Workspace, actor.workspace_id)
+    if ws is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "workspace not found")
+    from . import crypto, token_index
+
+    new_token = "krama_" + secrets.token_urlsafe(24)
+    settings = dict(ws.settings or {})
+    chat_cfg = dict(settings.get("chat") or {})
+    chat_cfg["token_hash"] = crypto.hash_value(new_token)
+    chat_cfg["token_enc"] = crypto.encrypt(new_token)
+    chat_cfg.pop("token", None)
+    chat_cfg["enabled"] = True
+    settings["chat"] = chat_cfg
+    ws.settings = settings
+    token_index.upsert(db, ws.id, chat_cfg["token_hash"])
+    db.commit()
+    return {"token": new_token, "enabled": True}
+
+
+@app.get("/chat/poll")
+async def chat_poll(
+    token: str, external_id: str, after: str = "",
+    request: Request = None, db: Session = Depends(get_db),
+) -> dict:
+    """挂件出站轮询：读某客户会话在 after 时间之后的 AI 回复（chat-token 鉴权）。"""
+    from . import token_index
+    from .ratelimit import limiter_inbound
+
+    client_ip = request.client.host if request else "unknown"
+    if not limiter_inbound.allow(f"poll:{client_ip}:{external_id}"):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试")
+    if not token or not external_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "missing token/external_id")
+    ws = token_index.resolve(db, token)
+    if ws is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid or disabled chat token")
+    convs = db.execute(
+        select(Conversation).where(
+            Conversation.workspace_id == ws.id,
+            Conversation.external_id == external_id,
+        )
+    ).scalars().all()
+    out: list[dict] = []
+    for conv in convs:
+        q = select(Message).where(
+            Message.conversation_id == conv.id, Message.direction == "out"
+        ).order_by(Message.created_at)
+        if after:
+            q = q.where(Message.created_at > after)
+        for m in db.execute(q).scalars().all():
+            out.append({
+                "id": m.id,
+                "content": m.content,
+                "created_at": m.created_at.isoformat(timespec="seconds") if m.created_at else None,
+            })
+    return {"messages": out}
+
+
+
 async def _webhook(provider: str, request: Request, db: Session, token: str = "") -> dict:
     from .ratelimit import limiter_inbound
     from .webhooks import handle

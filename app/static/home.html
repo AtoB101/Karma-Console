@@ -2558,6 +2558,24 @@ async function loadSettingsPanel(){
   <button class="pm-btn ghost" onclick="testSmtp()">发测试邮件</button>
   </div>
   </div>
+  ${secHead("聊天接入（IM 客服挂件 / 任意 IM 工具）")}
+  <div style="border:1px solid rgba(159,224,247,.18);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:rgba(159,224,247,.04)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <div>
+        <div style="font-weight:600;color:#eaf4ff">接入标识（聊天 Token）</div>
+        <div class="pm-meta">客户网站/公众号/IM 机器人凭此 Token 进入统一对话池</div>
+      </div>
+      ${(s&&s.chat&&s.chat.enabled)?`<span class="pm-chip ok">已启用</span>`:`<span class="pm-chip warn">未启用</span>`}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <input id="chTokenShow" class="pm-input" readonly style="flex:1;min-width:220px" value="${esc(s&&s.chat&&s.chat.token?s.chat.token:"未设置（点击生成）")}" placeholder="点击「生成接入 Token」">
+      <button class="pm-btn" onclick="rotateChatToken()">生成 / 重置接入 Token</button>
+      <button class="pm-btn ghost" onclick="copyChatToken()">复制 Token</button>
+      <button class="pm-btn ghost" onclick="copyWidgetCode()">复制挂件代码</button>
+    </div>
+    <div class="pm-meta">挂件代码是一段可直接贴进网站的 JS（含当前 Token）：贴到任意页面 body 末尾即出现客服气泡，访客消息进入本控制台统一对话池，AI 回复实时回显。第三方 IM 平台（公众号/小程序/机器人）用它调 <code>POST /chat/inbound</code> 接入，Webhook 地址：<code>/webhooks/{提供商}/{Token}</code></div>
+    <textarea id="chWidgetBox" style="display:none;width:100%;height:150px;margin-top:8px;background:#0a1424;color:#cfe3f5;border:1px solid rgba(159,224,247,.25);border-radius:8px;padding:8px;font-size:11px;font-family:monospace" readonly></textarea>
+  </div>
   ${secHead("备份记录")}
   ${(b&&b.backups&&b.backups.length)?`<table class="pm-table"><thead><tr><th>文件 / 原因</th><th>大小</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>${b.backups.map(x=>{const [sb,sc]=x.status==="ok"?["ok","ok"]:["失败","bad"];return `<tr><td><div style="font-weight:600">${esc(x.filename)}</div><div class="pm-meta">${esc(x.reason||"manual")}${x.restored_at?" · 已恢复":""}</div></td><td class="pm-meta">${(x.size_bytes/1024).toFixed(1)} KB</td><td><span class="pm-chip ${sc}">${sb}</span></td><td class="pm-meta">${fmtTime(x.created_at)}</td><td style="text-align:right">${x.status==="ok"&&!x.restored_at?`<button class="pm-btn sm danger" onclick="restoreBackup('${x.id}')">恢复</button>`:`<span class="pm-meta">—</span>`}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-meta">暂无备份，点上方立即备份。</div>`}
   ${secHead("配置版本历史（只读）")}
@@ -2583,6 +2601,68 @@ async function testSmtp(){
   }catch(e){toast(e.message);}
 }
 async function backupNow(){try{await jsend("POST","/backups",{});toast("备份已创建");loadSettingsPanel();}catch(e){toast(e.message);}}
+function _widgetCode(token){
+  return `<!-- Karma Console 客服挂件：粘贴到你的网站 body 末尾即可使用 -->
+<script>
+(function(){
+  var BASE="${esc(window.location.origin)}";
+  var TOKEN="${token}";
+  var EID="w"+Date.now().toString(36)+Math.random().toString(36).slice(2);
+  var css=document.createElement("style");
+  css.textContent="#kcWidget{position:fixed;right:18px;bottom:18px;z-index:99999;font-family:system-ui}"
+    +"#kcBtn{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#c64dff,#4cc9f0);border:none;color:#fff;font-size:26px;cursor:pointer;box-shadow:0 6px 24px rgba(198,77,255,.45)}"
+    +"#kcBox{display:none;width:320px;max-height:440px;background:rgba(10,16,30,.92);border:1px solid rgba(159,224,247,.4);border-radius:14px;margin-bottom:10px;overflow:hidden}"
+    +"#kcMsgs{height:330px;overflow-y:auto;padding:12px;color:#eaf4ff;font-size:13px}"
+    +".kc-m{margin:6px 0;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.07)}"
+    +".kc-a{background:rgba(76,201,240,.14)}"
+    +"#kcIn{width:100%;box-sizing:border-box;border:none;border-top:1px solid rgba(159,224,247,.3);background:transparent;color:#fff;padding:10px 12px;outline:none}";
+  document.head.appendChild(css);
+  var root=document.createElement("div");root.id="kcWidget";root.innerHTML=
+    '<div id="kcBox"><div id="kcMsgs"></div><input id="kcIn" placeholder="输入消息…"></div>'
+    +'<button id="kcBtn" title="在线客服">💬</button>';
+  document.body.appendChild(root);
+  var box=document.getElementById("kcBox"),msgs=document.getElementById("kcMsgs"),inp=document.getElementById("kcIn");
+  document.getElementById("kcBtn").onclick=function(){box.style.display=box.style.display==="block"?"none":"block";};
+  function add(role,txt){var d=document.createElement("div");d.className="kc-m "+(role==="out"?"kc-a":"");d.textContent=(role==="out"?"🤖 ":"🧑 ")+txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;}
+  function send(){var v=inp.value.trim();if(!v)return;inp.value="";
+    fetch(BASE+"/chat/inbound",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:TOKEN,channel:"webchat",external_id:EID,message:v,customer_name:"网站访客"})})
+    .then(function(r){return r.json();}).then(function(j){if(j&&j.reply){add("out",j.reply);}}).catch(function(){});
+  }
+  inp.addEventListener("keydown",function(e){if(e.key==="Enter")send();});
+  var last="";
+  setInterval(function(){
+    fetch(BASE+"/chat/poll?token="+encodeURIComponent(TOKEN)+"&external_id="+encodeURIComponent(EID)+"&after="+encodeURIComponent(last))
+    .then(function(r){return r.json();}).then(function(j){
+      (j.messages||[]).forEach(function(m){add("out",m.content);last=m.created_at||last;});
+    }).catch(function(){});
+  },3000);
+  add("in","你好，我是店铺 AI 客服，随时为你服务。");
+})();
+<\/script>`;
+}
+async function rotateChatToken(){
+  try{
+    const r=await jsend("POST",`/workspaces/${state.workspaceId}/chat-token/rotate`,{});
+    window.__chatTokenPlain=r.token;
+    $("#chTokenShow").value=r.token;
+    $("#chWidgetBox").value=_widgetCode(r.token);
+    toast("新接入 Token 已生成（仅本次显示，请立即复制）");
+  }catch(e){toast(e.message);}
+}
+function copyChatToken(){
+  const v=$("#chTokenShow").value;
+  if(!v||v.indexOf("未设置")>=0){toast("请先生成接入 Token");return;}
+  navigator.clipboard&&navigator.clipboard.writeText(v).then(()=>toast("Token 已复制")).catch(()=>{const t=document.createElement("textarea");t.value=v;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();toast("Token 已复制");});
+}
+function copyWidgetCode(){
+  let token=window.__chatTokenPlain||null;
+  const shown=$("#chTokenShow").value;
+  if(!token&&shown&&shown.indexOf("未设置")<0&&shown.indexOf("krama_")===0){token=shown;}
+  if(!token){toast("请先点击「生成 / 重置接入 Token」获取明文 Token");return;}
+  const box=$("#chWidgetBox");box.style.display="block";box.value=_widgetCode(token);
+  box.select();document.execCommand("copy");
+  toast("挂件代码已复制：贴到网站 body 末尾即启用客服气泡");
+}
 async function restoreBackup(id){
   if(!confirm("恢复将用该备份覆盖当前工作区数据（R4 不可逆）。系统会先自动建立一份安全快照兜底。\n\n确定继续？"))return;
   if(!confirm("再次确认：当前未备份的改动将被替换，恢复后页面自动刷新。真的要恢复吗？"))return;
