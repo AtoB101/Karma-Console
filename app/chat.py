@@ -948,6 +948,97 @@ def _rulepack_brief() -> str:
     return brief()
 
 
+# 贾维斯请示：意图 → 计划动作清单（确定性映射，仅规划不执行）
+_INTENT_TOOLS = {
+    "product_display": ["create_product_draft", "update_product", "publish_product"],
+    "product_import": ["import_products"],
+    "inventory": ["add_stock", "list_inventory"],
+    "orders": ["create_order", "fulfill_order"],
+    "shipments": ["create_shipment", "update_shipment"],
+    "payment": ["make_payment", "make_refund", "reconcile_payment"],
+    "copy": ["generate_marketing_draft"],
+    "goal": ["create_goal", "update_goal"],
+    "capabilities": ["create_function", "run_function"],
+    "customer": ["update_customer", "reply_customer", "send_chat_message"],
+}
+
+# 请示层专属的自然语言兜底（不污染执行链 detect_intent，仅用于“先请示”时的意图猜测）
+_FALLBACK_INTENT_RULES = [
+    (("上架", "上新", "发布产品", "发布商品", "添加产品", "添加商品", "新增产品", "新增商品", "挂个产品", "挂个商品", "上架产品", "上架商品"), "product_display"),
+    (("退款", "退钱", "打款", "转账", "收款"), "payment"),
+    (("补货", "进货", "采购", "补仓", "加库存", "入库"), "inventory"),
+    (("发货", "寄出", "寄给", "安排物流", "下运单"), "shipments"),
+    (("下单", "开单", "建单", "接单", "录单", "新订单"), "orders"),
+]
+
+# 查询类指令：只要信息不要改变状态 → 不出请示卡，直接主脑回答
+_QUERY_WORDS = ("多少", "几个", "有哪些", "多不多", "怎么样", "查一下", "查查", "看看", "列表", "统计", "汇总", "详情", "明细", "进度", "还剩", "还有")
+
+
+def _guess_intent(message: str) -> str:
+    intent = detect_intent(message)
+    if intent != "help":
+        return intent
+    for keywords, fallback in _FALLBACK_INTENT_RULES:
+        if any(v in message for v in keywords):
+            return fallback
+    return intent
+
+
+def propose(db: Session, actor: Actor, message: str) -> dict:
+    """解析指令为请示卡内容：计划动作 + 权限 + 负责 agent + 预案，不执行任何动作。
+
+    这是「贾维斯指挥模式」的请示层：先把意图、将做什么、谁负责、要不要老板授权
+    讲清楚，等主人说「授权」才进入真正的执行链路（handle_message）。
+    """
+    from .input_guard import sanitize_inbound
+    from . import nervous, playbook
+
+    cleaned, guard_error = sanitize_inbound(message)
+    if guard_error:
+        return {"reply": guard_error, "intent": "rejected", "actions": [], "escalate": True, "proposal_ready": True}
+    intent = _guess_intent(cleaned)
+    tools = _INTENT_TOOLS.get(intent, [])
+    if tools and any(q in cleaned for q in _QUERY_WORDS):
+        # 查询类：要的是信息不是改变状态，直接交给主脑回答，不出请示卡
+        tools = []
+    if not tools:
+        # 未命中动作意图：纯问答/面板类，直接提示，无需授权
+        return {"reply": cleaned, "intent": intent, "actions": [], "escalate": False, "proposal_ready": True}
+
+    actions = []
+    escalate_any = False
+    for tool in tools:
+        card = nervous.assign(tool)
+        need = bool(card.get("escalate"))
+        if need:
+            escalate_any = True
+        actions.append({
+            "tool": tool,
+            "need_authorization": need,
+            "owner": card.get("owner_name", "CEO 主脑"),
+            "work": card.get("work", ""),
+            "plan_b": card.get("plan_b", ""),
+            "priority": card.get("priority", "P2"),
+        })
+    esc_hits = playbook.must_escalate(cleaned)
+    if esc_hits:
+        escalate_any = True
+    lines = ["我将按以下方案执行（确认或说“授权”后开始）："]
+    for a in actions:
+        flag = "需你授权" if a["need_authorization"] else "自主执行"
+        lines.append(f"- {a['tool']}（{a['owner']}负责，{flag}，预案：{a['plan_b'] or '按标准流程'}）")
+    if esc_hits:
+        lines.append(f"- ⚠ 命中强制升级信号：{esc_hits}")
+    return {
+        "reply": "\n".join(lines),
+        "intent": intent,
+        "actions": actions,
+        "escalate": escalate_any,
+        "proposal_ready": True,
+    }
+
+
 def _call_model(db: Session, actor: Actor, message: str) -> str | None:
     """Ask the configured workspace model to produce a JSON plan, if available."""
     from .llm import chat, workspace_model_config

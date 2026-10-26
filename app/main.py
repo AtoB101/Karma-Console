@@ -3097,6 +3097,17 @@ async def chat(payload: schemas.ChatMessage, actor: Actor = Depends(require_acto
     return result
 
 
+@app.post("/workspaces/{workspace_id}/chat/proposal")
+async def chat_proposal(payload: schemas.ChatMessage, actor: Actor = Depends(require_actor), db: Session = Depends(get_db)) -> dict:
+    """贾维斯请示层：解析指令 → 意图卡（计划动作/权限/负责agent/预案），绝不执行。
+
+    主人看过请示卡说「授权」后，前端再走 /chat 真正执行。本端点只规划、零副作用。
+    """
+    from .chat import propose
+
+    return propose(db, actor, payload.message)
+
+
 MAX_SETTING_SNAPSHOTS = 20
 
 

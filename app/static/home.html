@@ -203,6 +203,17 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .msg .acts{margin-top:9px;display:flex;flex-wrap:wrap;gap:7px}
 .msg .act{font-size:11.5px;padding:4px 11px;border-radius:11px;background:rgba(72,230,179,.14);border:1px solid rgba(72,230,179,.32);color:#aef0d6}
 .msg.thinking{opacity:.85;font-style:italic;color:#c8d8e6}
+/* ---- 贾维斯指挥模式：请示卡 + 执行流水线可视化 ---- */
+.jv-step{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 9px;margin:5px 0;background:rgba(159,224,247,.06);border:1px solid rgba(159,224,247,.16);border-radius:9px;font-size:12px}
+.jv-step-tool{font-weight:700;color:#9fe0f7;font-family:Consolas,monospace}
+.jv-flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin-top:10px;padding:10px;background:rgba(8,14,30,.55);border:1px solid rgba(159,224,247,.22);border-radius:12px}
+.jv-node{padding:8px 12px;border-radius:10px;text-align:center;min-width:92px;animation:jvPulse 2.6s ease-in-out infinite;border:1px solid rgba(72,230,179,.5);background:rgba(72,230,179,.1);box-shadow:0 0 12px rgba(72,230,179,.25)}
+.jv-node.bad{border-color:rgba(255,122,150,.6);background:rgba(255,122,150,.12);box-shadow:0 0 12px rgba(255,122,150,.3)}
+.jv-node-t{font-weight:700;color:#aef0d6;font-size:12px}
+.jv-node.bad .jv-node-t{color:#ffb4c4}
+.jv-arrow{display:inline-block;width:34px;height:2px;margin:0 4px;background:linear-gradient(90deg,rgba(72,230,179,0),rgba(159,224,247,.9));box-shadow:0 0 6px rgba(76,201,240,.7);position:relative}
+.jv-arrow::after{content:"";position:absolute;right:-1px;top:-3px;width:0;height:0;border-left:6px solid rgba(159,224,247,.9);border-top:4px solid transparent;border-bottom:4px solid transparent}
+@keyframes jvPulse{0%,100%{opacity:.85;transform:scale(.985)}50%{opacity:1;transform:scale(1.015)}}
 
 
 .send-button{position:absolute;right:0;top:8px;color:#efffff;filter:drop-shadow(0 0 7px #7b61ff);padding:0}
@@ -1197,13 +1208,103 @@ function routeCommand(q){
   const names=Object.keys(PANELS).slice(0,12).map(k=>PANELS[k].title);
   popMsg("ai",`没找到「${q}」对应的面板。你可以直接说要打开哪个，例如：视频 Agent / 客服工作台 / 财务资金台 / 待审批 / 订单成交 / 生产工厂。当前可开面板：${names.join("、")}。`);
 }
-function submitCmd(e){e.preventDefault();const q=$("#cmdInput").value.trim();if(!q)return false;$("#cmdInput").value="";
-  // 底部统一输入条：当前打开哪个 Agent 全屏页，就把这句话交给该 Agent 整理
+function submitCmd(e){e.preventDefault();const q=$("#cmdInput").value.trim();if(!q)return false;$("#cmdInput").value="";dispatchCommand(q);return false;}
+/* 贾维斯指挥模式 · 统一指令分流：
+   ① 授权词 → 授权最近请示/审批，开始干活
+   ② 面板命令 → 直开面板并带回执数据
+   ③ 执行类指令 → 先出「请示卡」，说“授权”才执行
+   ④ 纯问答 → 主脑直接回答 */
+function dispatchCommand(q){
   const cp=window.__currentPanel;
-  if(cp==="devops"&&typeof devTalkBottom==="function"){devTalkBottom(q);return false;}
-  if(cp==="cockpitSupport"&&typeof csTalkBottom==="function"){csTalkBottom(q);return false;}
-  if(cp==="cockpitFinance"&&typeof finTalkBottom==="function"){finTalkBottom(q);return false;}
-  if(openPanelCommand(q))return false;askBrain(q);return false;}
+  if(cp==="devops"&&typeof devTalkBottom==="function"){devTalkBottom(q);return;}
+  if(cp==="cockpitSupport"&&typeof csTalkBottom==="function"){csTalkBottom(q);return;}
+  if(cp==="cockpitFinance"&&typeof finTalkBottom==="function"){finTalkBottom(q);return;}
+  if(openPanelCommand(q))return;
+  javisRoute(q);
+}
+const AUTH_RE=/^(授权|批准|同意|确认|执行吧|做吧|干吧|准了|好的|可以|行)[\s！!。，,.、]*/;
+async function javisRoute(q){
+  toggleChatPop(true);
+  if(AUTH_RE.test(q)){authorizeFlow();return;}
+  let res=null;
+  try{res=await jsend("POST",`/workspaces/${state.workspaceId}/chat/proposal`,{message:q});}catch(e){}
+  if(!res)return askBrain(q);
+  if(!res.actions||!res.actions.length)return askBrain(q);
+  javisProposeCard(q,res);
+}
+/* ③ 请示卡：展示理解（可编辑）+ 执行计划 + 每步权限；点「授权执行」才动手 */
+async function javisProposeCard(q,res){
+  popMsg("me",q);
+  const card=document.createElement("div");card.className="msg ai thinking";card.textContent="主脑整理请示中…";
+  $("#cpLog").appendChild(card);popScroll();
+  card.classList.remove("thinking");
+  const plan=((res.actions)||[]).map(a=>`
+    <div class="jv-step">
+      <span class="jv-step-tool">${esc(a.tool)}</span>
+      ${a.need_authorization?`<span class="pm-chip bad">需你授权</span>`:`<span class="pm-chip ok">自主执行</span>`}
+      <span class="pm-meta">${esc(a.owner)}负责 · 预案：${esc(a.plan_b||"按标准流程")}</span>
+    </div>`).join("");
+  card.innerHTML=`
+    <div style="font-weight:700;color:#9fe0f7;margin-bottom:6px">我理解你的意图如下（可修改）</div>
+    <textarea class="pm-input" style="width:100%;min-height:84px;resize:vertical;font-family:inherit">${esc(res.reply||"")}</textarea>
+    ${res.escalate?`<div class="pm-meta" style="margin-top:6px;color:#ffb4c4">⚠ 本指令涉及资金/不可逆/政策变更，将走强制审批确认码，需要你明确授权。</div>`:""}
+    ${plan?`<div style="margin-top:8px;font-weight:600;color:#cfe3f5">执行计划</div>${plan}`:""}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button class="pm-btn ghost" onclick="this.closest('.msg').remove()">我再想想</button>
+      <button class="pm-btn ok" onclick="javisAuthorize(this)">授权执行</button>
+    </div>`;
+  window.__jvPending={q:q,card:card};
+}
+/* ① 授权流：优先授权待确认请示卡，其次批准最近待审批 */
+async function authorizeFlow(){
+  if(window.__jvPending){
+    const p=window.__jvPending;window.__jvPending=null;
+    const btn=p.card?p.card.querySelector(".pm-btn.ok"):null;
+    if(btn){javisAuthorize(btn);return;}
+  }
+  try{
+    const ap=await jget(`/workspaces/${state.workspaceId}/approvals`);
+    const pend=(ap.approvals||[]).filter(a=>a.status==="PENDING");
+    if(!pend.length){popMsg("ai","没有待授权的请示或审批项。你可以直接说指令，我会先请示你再执行。");return;}
+    const id=pend[0].id;
+    await jsend("POST",`/approvals/${id}/decision`,{approve:true});
+    popMsg("ai",`已授权：${pend[0].title||pend[0].resource||"待办事项"} 已批准，正在执行。`);
+    window.__apRedraw&&window.__apRedraw();
+  }catch(e){popMsg("ai","授权失败："+(e.message||"网络错误"));}
+}
+/* 授权后真执行：回执 + 执行流水线可视化 */
+async function javisAuthorize(btn){
+  const card=btn.closest(".msg");
+  const intent=(card.querySelector("textarea").value||"").trim();
+  if(!intent)return;
+  window.__jvPending=null;
+  card.remove();
+  popMsg("me",intent);
+  const think=document.createElement("div");think.className="msg ai thinking";think.textContent="已授权，正在执行…";
+  $("#cpLog").appendChild(think);popScroll();
+  try{
+    const res=await jsend("POST",`/workspaces/${state.workspaceId}/chat`,{message:intent});
+    think.classList.remove("thinking");
+    const reply=res.reply||res.response||res.message||"执行完成。";
+    think.innerHTML=esc(reply);
+    const acts=(res.actions||[]).filter(a=>a&&(a.tool||a.name));
+    if(acts.length)think.appendChild(renderExecFlow(acts));
+    const usage=res.usage||res.token_usage;
+    if(usage&&usage.total_tokens)think.insertAdjacentHTML("beforeend",`<div class="pm-meta" style="margin-top:6px;color:#9fe0f7">${esc(res.model_used||"模型")} · 用量 ${usage.total_tokens} tokens</div>`);
+  }catch(err){
+    think.classList.remove("thinking");think.textContent="执行失败："+(err.message||"网络错误");
+  }
+}
+/* ④ 执行流水线可视化：横向节点 + 发光连线 + 状态呼吸 */
+function renderExecFlow(actions){
+  const d=document.createElement("div");d.className="jv-flow";
+  d.innerHTML=actions.map((a,i)=>{
+    const st=(a.decision||a.status||"ALLOWED");
+    const cls=(st==="DENIED"||st==="FAILED")?"bad":"ok";
+    return `${i?`<span class="jv-arrow"></span>`:""}<div class="jv-node ${cls}" style="animation-delay:${i*130}ms"><div class="jv-node-t">${esc(a.tool||a.name||"step")}</div><div class="pm-meta" style="font-size:10px">${esc(st)}</div></div>`;
+  }).join("");
+  return d;
+}
 
 /* ---- 主屏中央主脑对话浮窗（输入仍在底部框，问答显示在浮窗） ---- */
 let __popOpen=false;
@@ -1299,7 +1400,7 @@ async function agentConfirm(btn,agentName,outSelId,modelId){
       if(e.key==="Enter"&&!e.shiftKey){
         e.preventDefault();
         const q=box.value.trim();if(!q)return;
-        box.value="";if(!openPanelCommand(q))askBrain(q);
+        box.value="";dispatchCommand(q);
       }
     });
   }
@@ -1334,7 +1435,7 @@ function startVoice(){
     toast((map[code]||("语音识别错误："+code)));
     setMicState(false);
   };
-  recog.onend=()=>{listening=false;setMicState(false);const v=$("#cmdInput").value.trim();if(v)routeCommand(v);};
+  recog.onend=()=>{listening=false;setMicState(false);const v=$("#cmdInput").value.trim();if(v)dispatchCommand(v);};
   try{recog.start();}catch(e){toast("语音启动失败");setMicState(false);}
 }
 // 开场：点任意位置，所有面板从四面八方飞入组合成操作台
@@ -3963,7 +4064,7 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="Escape"){closeSearch();closePanel();}
 });
 $("#searchInput").addEventListener("keydown",e=>{
-  if(e.key==="Enter"){const v=$("#searchInput").value.trim();if(v){closeSearch();routeCommand(v);}}
+  if(e.key==="Enter"){const v=$("#searchInput").value.trim();if(v){closeSearch();dispatchCommand(v);}}
 });
 loadData();setInterval(loadData,8000);
 </script>
