@@ -504,6 +504,33 @@ class Execution(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class Lesson(Base):
+    """Trace-based self-learning: one distilled lesson per execution pattern.
+
+    Learned deterministically from execution history (tool + status aggregated),
+    optionally reviewed/applied by the owner. High-confidence applied lessons are
+    injected into the planner prompt so the system gets smarter over time.
+    """
+
+    __tablename__ = "lessons"
+    __table_args__ = (UniqueConstraint("workspace_id", "pattern_key"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    pattern_key: Mapped[str] = mapped_column(String(120))
+    tool_name: Mapped[str] = mapped_column(String(120), default="")
+    status: Mapped[str] = mapped_column(String(16), default="")
+    lesson: Mapped[str] = mapped_column(Text, default="")
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    fail_count: Mapped[int] = mapped_column(Integer, default=0)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    applied: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 

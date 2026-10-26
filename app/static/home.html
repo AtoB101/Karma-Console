@@ -3287,11 +3287,13 @@ const LANE_LABEL={queued:"排队待办",pending_approval:"待审批",executing:"
 async function loadNeuralPanel(){
   if(window.__neuralTimer){clearInterval(window.__neuralTimer);window.__neuralTimer=null;}
   const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>连接神经调度网…</p></div>`;
-  const [ov,tc,board,pb]=await Promise.all([
+  const [ov,tc,board,pb,ls,rp]=await Promise.all([
     sjget(`/workspaces/${state.workspaceId}/nervous/overview`),
     sjget(`/workspaces/${state.workspaceId}/nervous/tentacles`),
     sjget(`/workspaces/${state.workspaceId}/ledger/board`),
     sjget(`/workspaces/${state.workspaceId}/playbooks`),
+    sjget(`/workspaces/${state.workspaceId}/lessons`).catch(()=>({lessons:[]})),
+    sjget(`/rules`).catch(()=>({packs:[]})),
   ]);
   const domains=(tc&&tc.tentacles)||[];
   const force=(ov&&ov.force_escalate)||[];
@@ -3350,11 +3352,84 @@ async function loadNeuralPanel(){
       </details>
     </div>`;
   }).join("")}</div>`:`<div class="pm-meta">暂无预案。</div>`;
+  const lessons=(ls&&ls.lessons)||[];
+  const lsChip={SUCCEEDED:["全成功","ok"],FAILED:["有失败","bad"],MIXED:["混合","warn"]};
+  html+=secHead(`轨迹自学习 · 从执行历史沉淀经验（${lessons.length} 条，采纳后注入主脑规划）`);
+  html+=`<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <button class="pm-btn" onclick="learnLessons()">立即学习一轮（扫描最近执行记录）</button>
+    <span class="pm-meta" style="align-self:center">越用越聪明：按“工具×结果”聚合成功率，老板点采纳后，该经验进入规划提示词</span>
+  </div>`;
+  html+=lessons.length?`<div class="domain-grid">${lessons.map(l=>{
+    const c=lsChip[l.status]||[l.status,"info"];
+    return `<div class="domain-card">
+      <header><strong>${esc(l.pattern_key)}</strong><span class="pm-chip ${c[1]}">${c[0]}</span>${l.applied?`<span class="pm-chip ok">已采纳·注入中</span>`:`<span class="pm-chip info">待采纳</span>`}</header>
+      <div class="dc-meta">成功率 ${Math.round((l.confidence||0)*100)}% · 成功 ${l.success_count} / 失败 ${l.fail_count}</div>
+      <div style="margin:6px 0;font-size:12px;color:#cfe3f5">${esc(l.lesson)}</div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        ${l.applied?`<span class="pm-meta">已在主脑规划中生效</span>`:`<button class="pm-btn sm ok" onclick="applyLesson('${l.id}')">采纳并注入规划</button>`}
+        <button class="pm-btn sm danger" onclick="dismissLesson('${l.id}')">丢弃（错误经验）</button>
+      </div>
+    </div>`;
+  }).join("")}</div>`:`<div class="pm-meta">还没有经验样本。执行过真实任务后，点「立即学习一轮」即可沉淀。</div>`;
+  const packs=(rp&&rp.packs)||[];
+  html+=secHead(`规则包 · .yaml 即插即用，不改内核（${packs.length} 个，生效规则 ${((rp&&rp.active_rules)||[]).length} 条）`);
+  html+=packs.length?`<div class="domain-grid">${packs.map(p=>{
+    return `<div class="domain-card">
+      <header><strong>${esc(p.name)}</strong>${p.builtin?`<span class="pm-chip info">内置</span>`:`<span class="pm-chip warn">自定义</span>`}${p.active?`<span class="pm-chip ok">启用中</span>`:`<span class="pm-chip">已停用</span>`}</header>
+      <div class="dc-meta">${esc(p.id)} · ${esc(p.description||"")}</div>
+      <div style="margin:6px 0;font-size:12px;color:#cfe3f5">${(p.rules||[]).map(r=>`· ${esc(r)}`).join("<br>")}</div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <button class="pm-btn sm ${p.active?"warn":"ok"}" onclick="toggleRule('${esc(p.id)}',${p.active})">${p.active?"停用":"启用"}</button>
+        ${p.builtin?`<span class="pm-meta" style="align-self:center">内置包只可停用</span>`:`<button class="pm-btn sm danger" onclick="deleteRule('${esc(p.id)}')">删除</button>`}
+      </div>
+    </div>`;
+  }).join("")}</div>`:`<div class="pm-meta">暂无规则包。</div>`;
+  html+=`<details class="dc-plan" style="margin-top:10px"><summary>＋ 新建自定义规则包（写入 app/rules/ 目录，id 以 user_ 开头）</summary>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+    <input class="pm-input" id="rpId" placeholder="id：user_xxx（字母/数字/下划线，2-48 位）">
+    <input class="pm-input" id="rpName" placeholder="名称，如：生鲜品类回复规范">
+    <input class="pm-input" id="rpDesc" placeholder="一句话说明">
+    <textarea class="pm-input" id="rpRules" placeholder="规则，一行一条：如「苜蓿草报价先查产品库，无库存则引导留资」"></textarea>
+    <div><button class="pm-btn" onclick="createRule()">创建规则包（立即生效）</button></div>
+    </div>
+  </details>`;
   body.innerHTML=html;
   window.__neuralTimer=setInterval(()=>{
     if(!$("#panelOverlay").classList.contains("open")){clearInterval(window.__neuralTimer);window.__neuralTimer=null;return;}
     loadNeuralPanel();
   },15000);
+}
+async function learnLessons(){
+  try{
+    const r=await jsend("POST",`/workspaces/${state.workspaceId}/lessons/learn`,{});
+    toast(`轨迹学习完成：新增 ${r.learned} 条 / 更新 ${r.updated} 条（扫描 ${r.scanned} 条执行记录）`);
+    loadNeuralPanel();
+  }catch(e){toast(e.message);}
+}
+async function applyLesson(id){
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/lessons/${id}/apply`,{});toast("已采纳，该经验将注入主脑规划提示词");loadNeuralPanel();}catch(e){toast(e.message);}
+}
+async function dismissLesson(id){
+  if(!confirm("丢弃这条经验？它将从学习中移除，也不再注入规划。"))return;
+  try{await jsend("POST",`/workspaces/${state.workspaceId}/lessons/${id}/dismiss`,{});toast("已丢弃");loadNeuralPanel();}catch(e){toast(e.message);}
+}
+async function toggleRule(packId,curActive){
+  try{await jsend("PUT",`/rules/${packId}/active`,{active:!curActive});toast("规则包状态已更新");loadNeuralPanel();}catch(e){toast(e.message);}
+}
+async function createRule(){
+  const id=$("#rpId").value.trim();const name=$("#rpName").value.trim();const desc=$("#rpDesc").value.trim();
+  const rules=$("#rpRules").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!id){toast("请填写规则包 id（user_ 开头）");return;}
+  if(!rules.length){toast("至少填写 1 条规则");return;}
+  try{
+    const r=await jsend("POST","/rules",{id,name,description:desc,rules});
+    toast(`规则包 ${r.id} 已创建并立即生效（${r.rules} 条规则）`);
+    loadNeuralPanel();
+  }catch(e){toast(e.message);}
+}
+async function deleteRule(packId){
+  if(!confirm(`删除规则包 ${packId}？内置包不能删除。`))return;
+  try{await jsend("DELETE",`/rules/${packId}`,{});toast("规则包已删除");loadNeuralPanel();}catch(e){toast(e.message);}
 }
 async function loadNotifyPanel(){
   const body=$("#pmBody");body.innerHTML=`<div class="pm-empty"><p>聚合通知中…</p></div>`;

@@ -261,6 +261,24 @@ def migrate() -> None:
             "analyzed_at DATETIME,"
             "created_at DATETIME)"
         ))
+        # 轨迹自学习：lessons 表（老库兜底建表，新库由 create_all 自动创建）
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS lessons ("
+            "id VARCHAR(32) PRIMARY KEY,"
+            "workspace_id VARCHAR(32) NOT NULL,"
+            "pattern_key VARCHAR(120) NOT NULL,"
+            "tool_name VARCHAR(120) DEFAULT '',"
+            "status VARCHAR(16) DEFAULT '',"
+            "lesson TEXT DEFAULT '',"
+            "success_count INTEGER DEFAULT 0,"
+            "fail_count INTEGER DEFAULT 0,"
+            "confidence REAL DEFAULT 0.0,"
+            "applied BOOLEAN DEFAULT 0,"
+            "created_at DATETIME,"
+            "updated_at DATETIME,"
+            "last_used_at DATETIME,"
+            "UNIQUE(workspace_id, pattern_key))"
+        ))
         # 统一渠道账号：老库兜底建表
         conn.execute(text(
             "CREATE TABLE IF NOT EXISTS channel_accounts ("

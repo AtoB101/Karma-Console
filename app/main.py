@@ -1263,6 +1263,93 @@ def playbooks(actor: Actor = Depends(require_actor), q: str = "") -> dict:
     return {"items": search_playbook(q), "escalate_hits": must_escalate(q)}
 
 
+# ---- 轨迹自学习（Trace Learning）：从执行历史沉淀经验，老板确认后注入规划 ----
+@app.get("/workspaces/{workspace_id}/lessons")
+def lessons_list(actor: Actor = Depends(require_actor), db: Session = Depends(get_db)) -> dict:
+    """只读：本店已沉淀的执行经验（模式/成功率/置信度/是否已采纳）。"""
+    from .learning import list_lessons
+    return {"lessons": list_lessons(db, actor.workspace_id)}
+
+
+@app.post("/workspaces/{workspace_id}/lessons/learn")
+def lessons_learn(actor: Actor = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """触发一次轨迹学习：扫描最近执行记录，聚合成功/失败模式，沉淀经验。"""
+    from .learning import learn
+    return learn(db, actor.workspace_id, limit=200)
+
+
+@app.post("/workspaces/{workspace_id}/lessons/{lesson_id}/apply")
+def lesson_apply(lesson_id: str, actor: Actor = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """老板采纳该经验：应用后进入规划提示词，成为系统记忆。"""
+    from .models import Lesson
+    row = db.execute(
+        select(Lesson).where(
+            Lesson.workspace_id == actor.workspace_id, Lesson.id == lesson_id
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "lesson not found")
+    row.applied = True
+    db.commit()
+    return {"id": row.id, "applied": True, "pattern_key": row.pattern_key}
+
+
+@app.post("/workspaces/{workspace_id}/lessons/{lesson_id}/dismiss")
+def lesson_dismiss(lesson_id: str, actor: Actor = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
+    """丢弃该经验（错误/无用样本），同时从提示词注入中移除。"""
+    from .models import Lesson
+    row = db.execute(
+        select(Lesson).where(
+            Lesson.workspace_id == actor.workspace_id, Lesson.id == lesson_id
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "lesson not found")
+    db.delete(row)
+    db.commit()
+    return {"id": lesson_id, "deleted": True}
+
+
+# ---- 配置化规则包（Rule Packs）：.yaml 扔进目录即生效，不改内核 ----
+@app.get("/rules")
+def rule_packs(actor: Actor = Depends(require_actor)) -> dict:
+    """只读：规则包列表（内置/用户、激活状态、规则数）+ 当前生效规则。"""
+    from .rulepack import active_rules, list_packs
+    return {"packs": list_packs(refresh=True), "active_rules": active_rules()}
+
+
+@app.post("/rules")
+def rule_create(payload: dict = Body(...), actor: Actor = Depends(require_owner)) -> dict:
+    """创建用户规则包（写入 app/rules/ 目录，id 须 user_ 开头）。"""
+    from .rulepack import save_pack
+    try:
+        return save_pack(payload)
+    except (ValueError, PermissionError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+@app.put("/rules/{pack_id}/active")
+def rule_toggle(pack_id: str, payload: dict = Body(...), actor: Actor = Depends(require_owner)) -> dict:
+    """启用/停用规则包。"""
+    from .rulepack import set_active
+    try:
+        return set_active(pack_id, bool(payload.get("active", True)))
+    except FileNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+
+
+@app.delete("/rules/{pack_id}")
+def rule_delete(pack_id: str, actor: Actor = Depends(require_owner)) -> dict:
+    """删除用户规则包（内置包只可停用不可删）。"""
+    from .rulepack import delete_pack
+    try:
+        return delete_pack(pack_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
+    except PermissionError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
+
+
 # ---- 受控开发 Agent（DevOps）：变更单草案 / 回归门禁 / 老板审批，绝不自动写盘 ----
 def _change_dict(c: ChangeRequest) -> dict:
     return {

@@ -934,6 +934,20 @@ def _escalation_brief() -> str:
     return nervous.escalation_brief()
 
 
+def _learning_brief(db: Session, workspace_id: str) -> str:
+    """本店已采纳的执行经验注入（轨迹自学习闭环）。"""
+    from .learning import brief
+
+    return brief(db, workspace_id, max_items=4)
+
+
+def _rulepack_brief() -> str:
+    """激活规则包注入（.yaml 即插即用）。"""
+    from .rulepack import brief
+
+    return brief()
+
+
 def _call_model(db: Session, actor: Actor, message: str) -> str | None:
     """Ask the configured workspace model to produce a JSON plan, if available."""
     from .llm import chat, workspace_model_config
@@ -963,6 +977,8 @@ def _call_model(db: Session, actor: Actor, message: str) -> str | None:
             "可用工具及参数：\n" + _tool_catalog(db, actor),
             _PLANNER_RULES,
             _escalation_brief(),
+            _learning_brief(db, actor.workspace_id),
+            _rulepack_brief(),
             "用户指令：" + message,
         )
         if part
