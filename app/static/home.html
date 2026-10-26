@@ -1280,12 +1280,15 @@ function matchFunnelDrill(q){
   }
   return false;
 }
-/* 语音直达 · 产品 3D 特写：说“看下棉麻衬衫”直接放大 3D + 全信息 */
-function matchProduct3D(q){
+/* 语音直达 · 产品 3D 特写：说“看下棉麻衬衫”直接放大 3D + 全信息（自动读取商品库） */
+async function matchProduct3D(q){
   const m=q.match(/(?:看下|看看|查看|放大|展示|打开)([^，。！!？?\s]{1,20})/);
   if(!m)return false;
   const name=m[1].trim();
-  const rows=window.__pdRows||[];
+  let rows=window.__pdRows||[];
+  if(!rows.length){
+    try{const d=await jget(`/workspaces/${state.workspaceId}/products`);rows=d.products||[];window.__pdRows=rows;}catch(e){rows=[];}
+  }
   const hit=rows.find(p=>p.name.includes(name)||name.includes(p.name));
   if(!hit)return false;
   openPanel("product");
@@ -1299,7 +1302,7 @@ async function javisRoute(q){
   toggleChatPop(true);
   if(AUTH_RE.test(q)){authorizeFlow();return;}
   if(matchFunnelDrill(q))return;
-  if(matchProduct3D(q))return;
+  if(await matchProduct3D(q))return;
   if(openPanelCommand(q))return;
   let res=null;
   try{res=await jsend("POST",`/workspaces/${state.workspaceId}/chat/proposal`,{message:q});}catch(e){}
@@ -1989,10 +1992,12 @@ async function loadCustomerPanel(){
   window.__cuRedraw=draw;
 }
 /* 漏斗钻取：点某一层只看该层客户；语音“打开新增客户详情”也会直达这里 */
-function funnelDrill(key,label){
+async function funnelDrill(key,label){
   window.__cuFunnelKey=key||"";
   const ff=$("#cuFunnel");
   if(ff) ff.querySelectorAll(".cu-fn").forEach(el=>el.classList.toggle("on", el.textContent.includes(label)));
+  let n=0;
+  while(!window.__cuRows&&n<30){await new Promise(r=>setTimeout(r,150));n++;}
   window.__cuRedraw&&window.__cuRedraw();
   toast(`已展开：${label}`);
 }
