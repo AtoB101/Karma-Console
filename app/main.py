@@ -4442,7 +4442,7 @@ def analytics_insight(
                 {"label": "新增客户", "value": new_customers, "fmt": "位"},
                 {"label": "待办/待审批", "value": f"{len(todos)}/{len(approvals)}", "fmt": ""},
             ],
-            "trend": {"name": f"近 {len(buckets)} 天订单数（本地口径）", "buckets": buckets},
+            "trend": {"name": f"{label}订单数（本地口径）", "buckets": buckets},
             "dist": {"name": "订单状态分布", "items": [{"key": k, "value": v} for k, v in order_status.items()]},
             "list": {
                 "name": "低库存预警（≤5 件）",
@@ -4507,7 +4507,7 @@ def analytics_insight(
                 {"label": "客单价", "value": round(total_rev / n, 2) if n else 0, "fmt": "¥"},
                 {"label": "回款单数", "value": n, "fmt": "单"},
             ],
-            "trend": {"name": f"近 {len(buckets)} 天营收走势（本地口径）", "buckets": buckets},
+            "trend": {"name": f"{label}营收走势（本地口径）", "buckets": buckets},
             "dist": {"name": "成交金额按订单状态", "items": [{"key": k, "value": round(v, 2)} for k, v in by_st.items()]},
             "list": {
                 "name": "最近成交订单",
@@ -4731,13 +4731,13 @@ def analytics_insight(
     }
     if domain not in panels:
         return {"domain": domain, "error": f"未知域 {domain}，可选：" + ",".join(sorted(panels)), "meta": {"title": "未知域"}, "kpis": [], "trend": None, "dist": None, "list": None, "caveat": ""}
+    label = "昨日" if offset == 1 else (f"近 {days} 天" if days != 1 else "今日")
     p = panels[domain]()
     titles = {
         "report": "经营报表", "orders": "订单成交", "finance": "财务资金", "products": "产品库",
         "stock": "库存总览", "customers": "客户全景", "service": "智能客服", "marketing": "营销内容",
         "content": "内容创作", "tasks": "任务与审批", "system": "系统状态",
     }
-    label = "昨日" if offset == 1 else (f"近 {days} 天" if days != 1 else "今日")
     return {
         "domain": domain,
         "meta": {

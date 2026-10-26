@@ -1466,7 +1466,7 @@ async function matchProduct3D(q){
     if(r.trend&&r.trend.buckets&&r.trend.buckets.length){
       const b=r.trend.buckets.slice(-Math.min(12,r.trend.buckets.length));
       const mx=Math.max(1,...b.map(x=>Number(x.value)||0));
-      h+=`<div style="font-size:11.5px;color:#8fd8f7;letter-spacing:1px;margin-bottom:6px">${jvE((r.trend.name||"走势").replace("近30天",lb))}</div>
+      h+=`<div style="font-size:11.5px;color:#8fd8f7;letter-spacing:1px;margin-bottom:6px">${jvE((r.trend.name||"走势").replace(/近\s*\d+\s*天/,lb))}</div>
       <div style="display:flex;align-items:flex-end;gap:5px;height:86px;margin-bottom:18px;padding:0 2px">${b.map(x=>{const v=Number(x.value)||0;const hh=Math.max(3,Math.round(v/mx*82));return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="width:100%;height:${hh}px;background:linear-gradient(180deg,rgba(255,79,216,.75),rgba(76,201,240,.35));border-radius:4px 4px 0 0;box-shadow:0 0 8px rgba(76,201,240,.3)"></div><span style="font-size:9px;color:#6d93a8">${jvD(x.date)}</span></div>`;}).join("")}</div>`;
     }
     if(r.dist&&r.dist.items&&r.dist.items.length){
