@@ -214,6 +214,48 @@ button:disabled{cursor:not-allowed;opacity:.45}
 .jv-arrow{display:inline-block;width:34px;height:2px;margin:0 4px;background:linear-gradient(90deg,rgba(72,230,179,0),rgba(159,224,247,.9));box-shadow:0 0 6px rgba(76,201,240,.7);position:relative}
 .jv-arrow::after{content:"";position:absolute;right:-1px;top:-3px;width:0;height:0;border-left:6px solid rgba(159,224,247,.9);border-top:4px solid transparent;border-bottom:4px solid transparent}
 @keyframes jvPulse{0%,100%{opacity:.85;transform:scale(.985)}50%{opacity:1;transform:scale(1.015)}}
+/* ---- 3D 商品卡墙 + 产品特写浮层 + 客户漏斗 + 面板拖动 ---- */
+.pd3d-stage{perspective:1400px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin:4px 0 16px}
+.pd3d-card{position:relative;transform-style:preserve-3d;transition:transform .45s cubic-bezier(.2,.8,.25,1);cursor:pointer;background:rgba(12,22,44,.55);border:1px solid rgba(159,224,247,.22);border-radius:14px;padding:14px;backdrop-filter:blur(6px);overflow:hidden}
+.pd3d-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 18%,rgba(76,201,240,.16),transparent 55%);pointer-events:none}
+.pd3d-card:hover{transform:rotateX(8deg) rotateY(-9deg) translateZ(22px);border-color:rgba(72,230,179,.55);box-shadow:0 18px 44px rgba(0,0,0,.5),0 0 26px rgba(72,230,179,.2)}
+.pd3d-thumb{height:96px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,rgba(76,201,240,.12),rgba(176,140,255,.08));font-size:38px;margin-bottom:10px;border:1px solid rgba(159,224,247,.14)}
+.pd3d-thumb img{max-height:100%;max-width:100%;object-fit:contain;border-radius:8px}
+.pd3d-name{font-weight:700;color:#eaf4ff;font-size:13.5px;margin-bottom:4px}
+.pd3d-meta{display:flex;justify-content:space-between;font-size:11.5px;color:#8fd8f7;margin-bottom:3px}
+.pd3d-tags{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+/* 产品 3D 特写浮层 */
+.prod3d-overlay{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;background:rgba(2,6,16,.78);backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity .3s;perspective:1600px}
+.prod3d-overlay.open{opacity:1;pointer-events:auto}
+.prod3d-box{width:min(720px,92vw);max-height:86vh;overflow:auto;transform:rotateY(-16deg) rotateX(4deg) scale(.92);transition:transform .5s cubic-bezier(.2,.8,.25,1);background:linear-gradient(160deg,rgba(14,26,52,.92),rgba(8,14,30,.94));border:1px solid rgba(72,230,179,.4);border-radius:18px;padding:22px;box-shadow:0 0 60px rgba(72,230,179,.16),0 26px 70px rgba(0,0,0,.55);position:relative}
+.prod3d-overlay.open .prod3d-box{transform:rotateY(0) rotateX(0) scale(1)}
+.prod3d-glow{position:absolute;inset:0;border-radius:18px;pointer-events:none;background:radial-gradient(circle at 50% 0%,rgba(76,201,240,.12),transparent 60%)}
+.prod3d-hero{display:flex;gap:20px;align-items:flex-start;margin-bottom:16px}
+.prod3d-figure{width:210px;height:210px;border-radius:14px;background:linear-gradient(150deg,rgba(76,201,240,.14),rgba(176,140,255,.1));display:flex;align-items:center;justify-content:center;font-size:76px;border:1px solid rgba(159,224,247,.2);flex:none;animation:prodFloat 5s ease-in-out infinite;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.prod3d-figure img{max-height:92%;max-width:92%;object-fit:contain;border-radius:10px}
+@keyframes prodFloat{0%,100%{transform:translateY(0) rotateY(0)}50%{transform:translateY(-8px) rotateY(6deg)}}
+.prod3d-info{flex:1;min-width:0}
+.prod3d-info h2{color:#eaf4ff;margin:0 0 6px;font-size:20px}
+.prod3d-kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.prod3d-kv div{background:rgba(159,224,247,.07);border:1px solid rgba(159,224,247,.14);border-radius:9px;padding:7px 10px}
+.prod3d-kv b{display:block;font-size:10.5px;color:#7ea7c4;font-weight:600}
+.prod3d-kv span{color:#dbefff;font-size:12.5px}
+.prod3d-detail{margin-top:12px;color:#c2d9ea;font-size:13px;line-height:1.75;white-space:pre-wrap;background:rgba(8,14,30,.5);border:1px solid rgba(159,224,247,.12);border-radius:10px;padding:12px}
+.prod3d-q{display:inline-block;margin:4px 6px 0 0;padding:3px 10px;border-radius:9px;font-size:11px;background:rgba(72,230,179,.12);border:1px solid rgba(72,230,179,.3);color:#aef0d6}
+/* 客户五层漏斗 */
+.cu-funnel{display:flex;gap:10px;margin:2px 0 14px;flex-wrap:wrap}
+.cu-fn{flex:1;min-width:104px;cursor:pointer;border-radius:12px;padding:10px 12px;background:rgba(12,22,44,.55);border:1px solid rgba(159,224,247,.2);text-align:center;transition:transform .25s,box-shadow .25s;position:relative;overflow:hidden}
+.cu-fn::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(76,201,240,.14),transparent 65%)}
+.cu-fn:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.45),0 0 18px rgba(72,230,179,.16)}
+.cu-fn.on{border-color:rgba(72,230,179,.65);box-shadow:0 0 22px rgba(72,230,179,.25)}
+.cu-fn b{display:block;font-size:22px;color:#aef0d6;text-shadow:0 0 12px rgba(72,230,179,.35)}
+.cu-fn span{font-size:11px;color:#7ea7c4}
+.cu-fn i{display:block;font-size:12.5px;color:#cfe9f5;margin-top:3px;font-style:normal}
+/* 面板拖动 */
+.pm-head{cursor:grab;user-select:none}
+.pm-head:active{cursor:grabbing}
+.panel-modal.drag{transition:none}
+.panel-modal.dragging{transition:none;position:absolute;margin:0;box-shadow:0 0 90px rgba(76,201,240,.28),0 30px 80px rgba(0,0,0,.6)}
 
 
 .send-button{position:absolute;right:0;top:8px;color:#efffff;filter:drop-shadow(0 0 7px #7b61ff);padding:0}
@@ -1223,9 +1265,42 @@ function dispatchCommand(q){
   javisRoute(q);
 }
 const AUTH_RE=/^(授权|批准|同意|确认|执行吧|做吧|干吧|准了|好的|可以|行)[\s！!。，,.、]*/;
+/* 语音直达 · 客户五层漏斗：说“打开新增客户详情/咨询客户详情/成交客户…”直达对应层 */
+function matchFunnelDrill(q){
+  const map=[["新增客户","new"],["咨询客户","lead"],["详谈客户","negotiate"],["成交客户","won"],["复购客户","repeat"]];
+  for(const [k,v] of map){
+    if(q.includes(k)){
+      openPanel("customer");
+      setTimeout(()=>funnelDrill(v,k),650);
+      toggleChatPop(true);
+      popMsg("me",q);
+      popMsg("ai",`已打开客户面板并直达「${k}」详情：正在为你展开该层客户清单。`);
+      return true;
+    }
+  }
+  return false;
+}
+/* 语音直达 · 产品 3D 特写：说“看下棉麻衬衫”直接放大 3D + 全信息 */
+function matchProduct3D(q){
+  const m=q.match(/(?:看下|看看|查看|放大|展示|打开)([^，。！!？?\s]{1,20})/);
+  if(!m)return false;
+  const name=m[1].trim();
+  const rows=window.__pdRows||[];
+  const hit=rows.find(p=>p.name.includes(name)||name.includes(p.name));
+  if(!hit)return false;
+  openPanel("product");
+  toggleChatPop(true);
+  popMsg("me",q);
+  setTimeout(()=>{if(window.__pdRows&&window.__pdRows.length)openProduct3D(hit);},700);
+  popMsg("ai",`已 3D 放大「${hit.name}」，全息信息已展示，可点「详细介绍」让我完整讲解。`);
+  return true;
+}
 async function javisRoute(q){
   toggleChatPop(true);
   if(AUTH_RE.test(q)){authorizeFlow();return;}
+  if(matchFunnelDrill(q))return;
+  if(matchProduct3D(q))return;
+  if(openPanelCommand(q))return;
   let res=null;
   try{res=await jsend("POST",`/workspaces/${state.workspaceId}/chat/proposal`,{message:q});}catch(e){}
   if(!res)return askBrain(q);
@@ -1556,6 +1631,28 @@ function renderGuide(key){
     ${steps?`<div class="pm-guide-steps">${steps}</div>`:""}
     ${quick?`<div class="pm-guide-quick">${quick}</div>`:""}`;
 }
+/* 面板悬浮投影拖动：按住面板标题栏即可随意拖动位置 */
+(function(){
+  const head=document.querySelector(".pm-head");
+  const modal=document.querySelector(".panel-modal");
+  if(!head||!modal)return;
+  let sx=0,sy=0,ox=0,oy=0,drag=false;
+  head.addEventListener("mousedown",e=>{
+    if(e.target.closest("button"))return;
+    drag=true;sx=e.clientX;sy=e.clientY;
+    const r=modal.getBoundingClientRect();
+    ox=r.left;oy=r.top;
+    modal.classList.add("dragging");
+    modal.style.left=r.left+"px";modal.style.top=r.top+"px";
+    e.preventDefault();
+  });
+  document.addEventListener("mousemove",e=>{
+    if(!drag)return;
+    modal.style.left=(ox+e.clientX-sx)+"px";
+    modal.style.top=(oy+e.clientY-sy)+"px";
+  });
+  document.addEventListener("mouseup",()=>{if(drag){drag=false;modal.classList.remove("dragging");}});
+})();
 async function loadTentacleBar(key){
   const box=$("#pmTentacle");if(!box)return;
   box.innerHTML="";
@@ -1582,6 +1679,8 @@ async function loadTentacleBar(key){
   <div class="tc-detail">${rows.map(([k,v])=>v?`<div class="tc-row"><span class="tc-k">${k}</span><span class="tc-v">${esc(v)}</span></div>`:"").join("")}</div>`;
 }
 function closePanel(){
+  const modal=document.querySelector(".panel-modal");
+  if(modal){modal.classList.remove("dragging");modal.style.left="";modal.style.top="";}
   if(window.__neuralTimer){clearInterval(window.__neuralTimer);window.__neuralTimer=null;}
   window.__panelStack=window.__panelStack||[];
   const prev=window.__panelStack.pop();
@@ -1662,7 +1761,7 @@ async function notifyDecision(id,approve){
 }
 
 const ORDER_ST={PAID:["待发货","warn"],SHIPPED:["配送中","info"],DELIVERED:["已送达","ok"],CANCELLED:["已取消","bad"],PENDING:["待支付","warn"]};
-const CUST_ST={new:["新线索","info"],lead:["跟进中","warn"],won:["已成交","ok"],lost:["已流失","bad"]};
+const CUST_ST={new:["新增客户","info"],lead:["咨询客户","warn"],negotiate:["详谈客户","warn"],won:["成交客户","ok"],repeat:["复购客户","ok"],lost:["已流失","bad"]};
 const PROD_ST={published:["在售","ok"],draft:["草稿","info"],archived:["下架","bad"]};
 
 async function loadProductPanel(){
@@ -1675,7 +1774,17 @@ async function loadProductPanel(){
     const [d,inv]=await Promise.all([jget(`/workspaces/${state.workspaceId}/products`),sjget(`/workspaces/${state.workspaceId}/inventory`)]);
     const rows=d.products||[];
     const nameMap=Object.fromEntries(rows.map(p=>[p.id,p.name]));
+    window.__pdRows=rows;
     const moves=(inv&&inv.recent_movements)||[];
+    const stage3d=rows.length?`<div class="pd3d-stage">${rows.map(p=>{
+      const [lb,cls]=PROD_ST[p.status]||PROD_ST.draft;
+      const low=(p.stock||0)<=5;
+      return `<div class="pd3d-card" onclick="showProduct3D('${p.id}')" title="点击 3D 放大查看">
+        <div class="pd3d-thumb">${p.photo_url?`<img src="${esc(p.photo_url)}" onerror="this.outerHTML='<span style=font-size:34px>📦</span>'">`:`<span style="font-size:34px">📦</span>`}</div>
+        <div class="pd3d-name">${esc(p.name)}</div>
+        <div class="pd3d-meta"><span>¥${Number(p.price||0).toFixed(2)}</span><span style="${low?"color:#ffb454;font-weight:600":""}">库存 ${p.stock??0}${low?" · 低":""}</span></div>
+        <div class="pd3d-tags"><span class="pm-chip ${cls}">${lb}</span><span class="pm-meta">${esc(p.category||"未分类")}</span></div>
+      </div>`;}).join("")}</div><div class="pm-meta" style="margin:0 0 14px">点击卡片 3D 放大查看商品全息详情 · 也可在底部输入框说“看下【商品名】”</div>`:`<div class="pm-empty"><p>还没有商品，先新增一个，即可在这里 3D 呈现。</p></div>`;
     const prodTable=rows.length?`<table class="pm-table"><thead><tr><th>商品 / 分类</th><th>价格</th><th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows.map(p=>{
       const [lb,cls]=PROD_ST[p.status]||PROD_ST.draft;
       const low=(p.stock||0)<=5;
@@ -1683,12 +1792,65 @@ async function loadProductPanel(){
       <td>¥${Number(p.price||0).toFixed(2)}</td>
       <td style="${low?"color:#8fd8f7;font-weight:600":""}">${p.stock??0}${low?" · 低库存":""}</td>
       <td><span class="pm-chip ${cls}">${lb}</span></td>
-      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm ghost" onclick="editProduct('${p.id}')">编辑</button><button class="pm-btn sm ghost" onclick="restockProduct('${p.id}')">补货</button>${p.status==="published"?`<button class="pm-btn sm ghost" onclick="setProductStatus('${p.id}','draft')">下架</button>`:`<button class="pm-btn sm" onclick="setProductStatus('${p.id}','published')">上架</button>`}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>还没有商品，先新增一个。</p></div>`;
+      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm ghost" onclick="showProduct3D('${p.id}')">3D 查看</button><button class="pm-btn sm ghost" onclick="editProduct('${p.id}')">编辑</button><button class="pm-btn sm ghost" onclick="restockProduct('${p.id}')">补货</button>${p.status==="published"?`<button class="pm-btn sm ghost" onclick="setProductStatus('${p.id}','draft')">下架</button>`:`<button class="pm-btn sm" onclick="setProductStatus('${p.id}','published')">上架</button>`}</td></tr>`;}).join("")}</tbody></table>`:"";
     const moveSec=moves.length?`${secHead(`最近出入库（${moves.length}，只读）`)}<table class="pm-table"><thead><tr><th>商品</th><th>变动</th><th>原因</th><th>关联订单</th></tr></thead><tbody>${moves.map(m=>{const v=Number(m.delta||0);const col=v>0?"#33d69f":v<0?"#f87171":"#b6cddd";return `<tr><td>${esc(nameMap[m.product_id]||m.product_id||"—")}</td><td style="color:${col};font-weight:700">${v>0?"+":""}${v}</td><td class="pm-meta">${esc(m.reason||"—")}</td><td class="pm-meta">${esc(m.order_id||"—")}</td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-meta" style="margin-top:12px">暂无出入库记录，补货/成交后在此显示。</div>`;
-    $("#pdList").innerHTML=prodTable+moveSec;
+    $("#pdList").innerHTML=stage3d+prodTable+moveSec;
   };
   draw().catch(e=>body.innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
   window.__pdRedraw=draw;
+}
+/* 产品 3D 特写：点卡片/说“看下xxx”都会触发 */
+function showProduct3D(id){
+  const d=(window.__pdRows||[]).find(p=>p.id===id);
+  if(!d){toast("商品数据未加载，请先打开商品面板");return;}
+  openProduct3D(d);
+}
+function openProduct3D(p){
+  let ov=$("#prod3dOverlay");
+  if(!ov){
+    ov=document.createElement("div");ov.className="prod3d-overlay";ov.id="prod3dOverlay";
+    ov.onclick=(e)=>{if(e.target===ov)closeProduct3D();};
+    document.body.appendChild(ov);
+  }
+  const specs=p.specs||{};
+  const specHtml=Object.keys(specs).length?`<div class="prod3d-kv">${Object.entries(specs).map(([k,v])=>`<div><b>${esc(k)}</b><span>${esc(String(v))}</span></div>`).join("")}</div>`:"";
+  const qHtml=(p.qualifications||[]).length?`<div style="margin-top:12px"><span class="pm-meta">资质认证：</span>${(p.qualifications||[]).map(q=>`<span class="prod3d-q">${esc(q)}</span>`).join("")}</div>`:"";
+  ov.innerHTML=`<div class="prod3d-box">
+    <div class="prod3d-glow"></div>
+    <div style="display:flex;justify-content:flex-end"><button class="pm-btn ghost" onclick="closeProduct3D()">✕ 关闭</button></div>
+    <div class="prod3d-hero">
+      <div class="prod3d-figure">${p.photo_url?`<img src="${esc(p.photo_url)}" onerror="this.outerHTML='<span style=font-size:72px>📦</span>'">`:`<span style="font-size:72px">📦</span>`}</div>
+      <div class="prod3d-info">
+        <h2>${esc(p.name)}</h2>
+        <div style="display:flex;gap:8px;align-items:center;margin:4px 0 10px">
+          <span class="pm-chip ok">¥${Number(p.price||0).toFixed(2)}</span>
+          <span class="pm-chip ${p.status==="published"?"ok":"info"}">${(PROD_ST[p.status]||PROD_ST.draft)[0]}</span>
+          <span class="pm-chip ${(p.stock||0)<=5?"bad":"ok"}">库存 ${p.stock??0}</span>
+          <span class="pm-meta">${esc(p.category||"未分类")}</span>
+        </div>
+        ${specHtml}
+        ${qHtml}
+      </div>
+    </div>
+    ${p.detail?`<div class="prod3d-detail">${esc(p.detail)}</div>`:`<div class="pm-meta" style="margin-top:10px">暂无详情描述，可在商品表格点「编辑」补充，或让我为你介绍。</div>`}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="pm-btn ghost" onclick="closeProduct3D()">返回</button>
+      <button class="pm-btn" onclick="introduceProduct3D('${esc(p.name)}')">详细介绍</button>
+    </div>
+  </div>`;
+  ov.classList.add("open");
+}
+function closeProduct3D(){const ov=$("#prod3dOverlay");if(ov)ov.classList.remove("open");}
+/* “详细介绍”：交给主脑基于商品库真实生成，回执显示在浮层内 */
+async function introduceProduct3D(name){
+  const box=document.querySelector(".prod3d-box .prod3d-detail")||document.querySelector(".prod3d-box");
+  if(!box)return;
+  const old=box.innerHTML;box.innerHTML=`<div class="pm-meta" style="color:#9fe0f7">主脑正在整理「${esc(name)}」的完整介绍…</div>`;
+  try{
+    const res=await jsend("POST",`/workspaces/${state.workspaceId}/chat`,{message:`详细介绍下产品「${name}」，从卖点、适用场景、规格优势到资质给客户讲清楚`});
+    const reply=res.reply||res.response||res.message||"已完成介绍。";
+    box.innerHTML=`<div class="prod3d-detail">${esc(reply)}</div>`;
+  }catch(e){box.innerHTML=old;toast("介绍生成失败："+(e.message||"网络错误"));}
 }
 async function restockProduct(id){
   const q=prompt("补货数量（正数）：");if(q===null)return;const n=parseInt(q,10);if(!(n>0)){toast("请填正数");return;}
@@ -1789,7 +1951,7 @@ async function cancelOrder(channel,ref){
 
 async function loadCustomerPanel(){
   const body=$("#pmBody");
-  body.innerHTML=`<div class="pm-toolbar"><input class="pm-input" id="cuName" placeholder="客户姓名" style="min-width:160px"><input class="pm-input" id="cuChannel" placeholder="渠道 chat/微信/淘宝…" style="width:160px" value="chat"><button class="pm-btn" onclick="addCustomer()">＋ 新建客户</button><button class="pm-btn ghost" onclick="window.__cuRedraw&&window.__cuRedraw()">↻ 刷新</button></div><div id="cuDist" class="cu-dist"></div><div id="cuList"></div><div id="cuHistory"></div>`;
+  body.innerHTML=`<div class="pm-toolbar"><input class="pm-input" id="cuName" placeholder="客户姓名" style="min-width:160px"><input class="pm-input" id="cuChannel" placeholder="渠道 chat/微信/淘宝…" style="width:160px" value="chat"><button class="pm-btn" onclick="addCustomer()">＋ 新建客户</button><button class="pm-btn ghost" onclick="window.__cuRedraw&&window.__cuRedraw()">↻ 刷新</button></div><div id="cuFunnel" class="cu-funnel"></div><div id="cuDist" class="cu-dist"></div><div id="cuList"></div><div id="cuHistory"></div>`;
   const draw=async()=>{
     const [cd,ld]=await Promise.all([
       sjget(`/workspaces/${state.workspaceId}/customers`),
@@ -1798,11 +1960,21 @@ async function loadCustomerPanel(){
     const rows=(cd&&cd.customers)||[];
     const leadMap={};((ld&&ld.leads)||[]).forEach(l=>leadMap[l.id]=l);
     window.__cuRows=rows;
+    window.__cuAllRows=rows;
     const dist=(ld&&ld.distribution)||{};
     const distItems=[["H","热线索 · 当天派单","#ff6b7d"],["A","温线索 · 尽快首触","#ffc86b"],["B","淡线索 · 队列触达","#8fd8f7"],["C","冷线索 · 培育","#48e6b3"]];
     const dc=$("#cuDist");
     if(dc) dc.innerHTML=distItems.map(([g,t,col])=>`<div class="cu-dist-item"><div class="cu-dist-num" style="color:${col}">${dist[g]||0}</div><div class="pm-meta">${g} · ${t}</div></div>`).join("");
-    $("#cuList").innerHTML=rows.length?`<table class="pm-table"><thead><tr><th>客户 / 备注</th><th>渠道</th><th>阶段</th><th>线索分级</th><th>操作</th></tr></thead><tbody>${rows.map(c=>{
+    // 五层成交漏斗：新增 → 咨询 → 详谈 → 成交 → 复购
+    const funnel=[["new","新增客户"],["lead","咨询客户"],["negotiate","详谈客户"],["won","成交客户"],["repeat","复购客户"]];
+    const funnelCounts={new:0,lead:0,negotiate:0,won:0,repeat:0};
+    rows.forEach(c=>{const s=c.stage;if(funnelCounts[s]!==undefined)funnelCounts[s]++;});
+    const cur=window.__cuFunnelKey||"";
+    const ff=$("#cuFunnel");
+    if(ff) ff.innerHTML=funnel.map(([k,label])=>`<div class="cu-fn ${cur===k?"on":""}" onclick="funnelDrill('${k}','${label}')"><b>${funnelCounts[k]}</b><i>${label}</i><span>点击查看详情</span></div>`).join("")+`<div class="cu-fn ${cur===""?"on":""}" onclick="funnelDrill('','全部客户')"><b>${rows.length}</b><i>全部客户</i><span>点击查看详情</span></div>`;
+    const shown=cur?rows.filter(c=>c.stage===cur):rows;
+    const listHead=cur?`<div class="pm-meta" style="margin:2px 0 8px">当前查看：<b style="color:#aef0d6">${funnel.map(([k,l])=>k===cur?l:"").join("")||"全部客户"}</b> · ${shown.length} 位</div>`:"";
+    $("#cuList").innerHTML=listHead+(shown.length?`<table class="pm-table"><thead><tr><th>客户 / 备注</th><th>渠道</th><th>阶段</th><th>线索分级</th><th>操作</th></tr></thead><tbody>${shown.map(c=>{
       const [lb,cls]=CUST_ST[c.stage]||CUST_ST.new;
       const note=(c.profile&&c.profile.note)||"";
       const lead=leadMap[c.id]||{};
@@ -1811,15 +1983,23 @@ async function loadCustomerPanel(){
       return `<tr><td><div style="font-weight:600">${esc(c.name||c.external_id||"未命名")}</div>${note?`<div class="pm-meta">备注：${esc(note)}</div>`:""}</td><td>${esc(c.channel||"—")}</td>
       <td><span class="pm-chip ${cls}">${lb}</span></td>
       <td>${gradeTag}${lead.next_action?`<div class="sla-line sla-${lead.next_action.urgency||"calm"}" style="margin-top:4px">${esc(lead.next_action.sla||"")}</div>`:""}</td>
-      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm ghost" onclick="customerHistory('${c.id}')">往来</button><button class="pm-btn sm ghost" onclick="noteCustomer('${c.id}')">备注</button><button class="pm-btn sm ghost" onclick="rateCustomer('${c.id}')">评分</button><button class="pm-btn sm" onclick="advanceCustomer('${c.id}')">推进阶段</button></td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>暂无客户。</p></div>`;
+      <td style="display:flex;gap:8px;justify-content:flex-end"><button class="pm-btn sm ghost" onclick="customerHistory('${c.id}')">往来</button><button class="pm-btn sm ghost" onclick="noteCustomer('${c.id}')">备注</button><button class="pm-btn sm ghost" onclick="rateCustomer('${c.id}')">评分</button><button class="pm-btn sm" onclick="advanceCustomer('${c.id}')">推进阶段</button></td></tr>`;}).join("")}</tbody></table>`:`<div class="pm-empty"><p>${cur?`该层暂无客户。`:"暂无客户。"}</p></div>`);
   };
   draw().catch(e=>$("#cuList").innerHTML=`<div class="pm-empty"><p>${esc(e.message)}</p></div>`);
   window.__cuRedraw=draw;
 }
+/* 漏斗钻取：点某一层只看该层客户；语音“打开新增客户详情”也会直达这里 */
+function funnelDrill(key,label){
+  window.__cuFunnelKey=key||"";
+  const ff=$("#cuFunnel");
+  if(ff) ff.querySelectorAll(".cu-fn").forEach(el=>el.classList.toggle("on", el.textContent.includes(label)));
+  window.__cuRedraw&&window.__cuRedraw();
+  toast(`已展开：${label}`);
+}
 async function advanceCustomer(id){
-  const stage=prompt("推进到阶段：new 新线索 / lead 跟进中 / won 已成交 / lost 已流失","lead");
+  const stage=prompt("推进到阶段：new 新增 / lead 咨询 / negotiate 详谈 / won 成交 / repeat 复购 / lost 流失","lead");
   if(stage===null)return;
-  if(!["new","lead","won","lost"].includes(stage.trim())){toast("阶段值无效");return;}
+  if(!["new","lead","negotiate","won","repeat","lost"].includes(stage.trim())){toast("阶段值无效");return;}
   await gwExec("update_customer",{customer_id:id,stage:stage.trim()},()=>window.__cuRedraw&&window.__cuRedraw());
 }
 async function noteCustomer(id){
